@@ -77,7 +77,10 @@ export const useStore = create<SongshuState>()(
             results.push({ name: file.name, ok: false, error: e instanceof Error ? e.message : String(e) })
           }
         }
-        set({ transactions: all, importResults: results })
+        // 同名文件的结果覆盖旧记录，不同文件累积——支持"传完一个再传下一个"
+        const names = new Set(files.map((f) => f.name))
+        const mergedResults = [...get().importResults.filter((r) => !names.has(r.name)), ...results]
+        set({ transactions: all, importResults: mergedResults })
         return results
       },
 

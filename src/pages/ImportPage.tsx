@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { FINANCE_APPS, type FinanceApp } from '../apps'
 import { isDemoTxn, useStore } from '../store/useStore'
 import { navigate } from '../hooks/useHashRoute'
@@ -12,6 +12,19 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
   const results = useStore((s) => s.importResults)
   const clearResults = useStore((s) => s.clearImportResults)
   const hasDemo = useStore((s) => s.transactions.some(isDemoTxn))
+  const allTx = useStore((s) => s.transactions)
+  const summary = useMemo(() => {
+    const wechat = allTx.filter((t) => t.platform === 'wechat').length
+    const alipay = allTx.filter((t) => t.platform === 'alipay').length
+    const ms = monthsOf(allTx)
+    return {
+      total: allTx.length,
+      desc:
+        ms.length > 0
+          ? `微信 ${wechat} 笔 · 支付宝 ${alipay} 笔 · 覆盖 ${ms[ms.length - 1]} ~ ${ms[0]}`
+          : '',
+    }
+  }, [allTx])
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [guideKey, setGuideKey] = useState<string | null>('wechat')
@@ -25,15 +38,17 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
     setGuideKey(key)
   }
 
-  /** 上传成功 → 直接跳到报表页并定位到最新导入的月份，让用户立刻看到分析结果 */
+  /** 上传只入库不跳转——支持先传完所有文件，再点「一键分析」 */
   const pickFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return
-    const importResults = await importFiles(Array.from(list))
-    if (importResults.length > 0 && importResults.every((r) => r.ok)) {
-      const latest = monthsOf(useStore.getState().transactions)[0]
-      if (latest) useStore.getState().setSelectedMonth(latest)
-      navigate('report')
-    }
+    await importFiles(Array.from(list))
+  }
+
+  /** 一键分析：定位到最新月份并进入报表 */
+  const analyze = () => {
+    const latest = monthsOf(useStore.getState().transactions)[0]
+    if (latest) useStore.getState().setSelectedMonth(latest)
+    navigate('report')
   }
 
   const scrollToStep1 = () => {
@@ -78,10 +93,10 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
           </button>
           {hasData && (
             <button
-              onClick={() => navigate('report')}
+              onClick={analyze}
               className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-600"
             >
-              查看我的报表 →
+              🚀 一键分析 →
             </button>
           )}
         </div>
@@ -247,6 +262,25 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
             ))}
             <div className="flex justify-end px-4 py-2">
               <button className="text-xs text-ink-soft hover:text-ink" onClick={clearResults}>关闭</button>
+            </div>
+          </Card>
+        )}
+        {/* 数据概览 + 一键分析 */}
+        {hasData && (
+          <Card className="mt-3 overflow-hidden ring-2 ring-squirrel-200">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-ink">📊 已就绪 {summary.total} 笔账单</div>
+                <div className="mt-0.5 text-xs text-ink-soft">
+                  {summary.desc} · 可继续上传其他文件补充，也可以直接开始分析
+                </div>
+              </div>
+              <button
+                onClick={analyze}
+                className="ml-auto rounded-xl bg-squirrel-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-squirrel-500/25 transition-all hover:-translate-y-0.5 hover:bg-squirrel-600"
+              >
+                🚀 一键分析 →
+              </button>
             </div>
           </Card>
         )}
