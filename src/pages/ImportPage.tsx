@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react'
 import { FINANCE_APPS, type FinanceApp } from '../apps'
-import { useStore } from '../store/useStore'
+import { isDemoTxn, useStore } from '../store/useStore'
 import { navigate } from '../hooks/useHashRoute'
+import { monthsOf } from '../core/month'
 import { Card } from '../components/ui'
 
 export function ImportPage({ hasData }: { hasData: boolean }) {
   const importFiles = useStore((s) => s.importFiles)
   const loadDemo = useStore((s) => s.loadDemo)
+  const clearDemo = useStore((s) => s.clearDemo)
   const results = useStore((s) => s.importResults)
   const clearResults = useStore((s) => s.clearImportResults)
+  const hasDemo = useStore((s) => s.transactions.some(isDemoTxn))
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [guideKey, setGuideKey] = useState<string | null>('wechat')
@@ -22,9 +25,19 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
     setGuideKey(key)
   }
 
-  const pickFiles = (list: FileList | null) => {
+  /** 上传成功 → 直接跳到报表页并定位到最新导入的月份，让用户立刻看到分析结果 */
+  const pickFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return
-    void importFiles(Array.from(list))
+    const importResults = await importFiles(Array.from(list))
+    if (importResults.length > 0 && importResults.every((r) => r.ok)) {
+      const latest = monthsOf(useStore.getState().transactions)[0]
+      if (latest) useStore.getState().setSelectedMonth(latest)
+      navigate('report')
+    }
+  }
+
+  const scrollToStep1 = () => {
+    document.getElementById('step-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const uploadHint =
@@ -57,12 +70,12 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
           >
             🎮 一键体验（演示数据）
           </button>
-          <a
-            href="#step-1"
+          <button
+            onClick={scrollToStep1}
             className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-ink ring-1 ring-stone-200 transition-all hover:-translate-y-0.5 hover:ring-stone-300"
           >
             开始导入我的账单
-          </a>
+          </button>
           {hasData && (
             <button
               onClick={() => navigate('report')}
@@ -79,6 +92,19 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
           <span className="rounded-full bg-stone-100 px-3 py-1.5 font-medium text-stone-500">无账号 · 无上传 · 无广告</span>
         </div>
       </section>
+
+      {/* ---------- 演示数据提醒 ---------- */}
+      {hasDemo && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <span>🐘 当前混有「一键体验」的演示数据，上传真实账单前建议先清除，避免影响分析结果。</span>
+          <button
+            onClick={clearDemo}
+            className="ml-auto rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
+          >
+            🗑️ 清除演示数据
+          </button>
+        </div>
+      )}
 
       {/* ---------- Step 01 选APP ---------- */}
       <section id="step-1" className="scroll-mt-20">

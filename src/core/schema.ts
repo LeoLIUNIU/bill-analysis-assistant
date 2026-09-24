@@ -49,6 +49,8 @@ export interface Transaction {
   pairId?: string
   /** 用户在纠错队列选择的分类覆盖 */
   categoryOverride?: string
+  /** 演示数据标记：一键体验生成的账单，可一键清除 */
+  isDemo?: boolean
 }
 
 export interface ParsedBill {

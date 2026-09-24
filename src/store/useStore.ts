@@ -4,7 +4,22 @@ import type { Correction, MonthlyAggregate, ParsedBill, Transaction } from '../c
 import { aggregateMonth, monthsOf } from '../core/month'
 import { mergeTransactions, parseBillFile, parseBillText, processPipeline } from '../core/pipeline'
 import { buildArchive, downloadTextFile, parseArchive, serializeArchive } from '../core/archive'
-import { DEMO_FILES } from '../demo/samples'
+import { ALIPAY_SAMPLE_CSV, DEMO_FILES, WECHAT_SAMPLE_CSV } from '../demo/samples'
+
+/** 演示账单的稳定ID集合：兼容旧版本导入、尚无 isDemo 标记的存量数据 */
+export const DEMO_IDS: ReadonlySet<string> = (() => {
+  const ids = new Set<string>()
+  for (const text of [WECHAT_SAMPLE_CSV, ALIPAY_SAMPLE_CSV]) {
+    try {
+      for (const t of parseBillText(text).transactions) ids.add(t.id)
+    } catch {
+      // 演示数据由单测保证，理论上不会走到这里
+    }
+  }
+  return ids
+})()
+
+export const isDemoTxn = (t: Transaction): boolean => Boolean(t.isDemo) || DEMO_IDS.has(t.id)
 
 export interface ImportResult {
   name: string
@@ -23,8 +38,9 @@ interface SongshuState {
   selectedMonth: string
   importResults: ImportResult[]
 
-  importFiles: (files: File[]) => Promise<void>
+  importFiles: (files: File[]) => Promise<ImportResult[]>
   loadDemo: () => void
+  clearDemo: () => void
   setCorrection: (id: string, corr: Correction) => void
   clearCorrection: (id: string) => void
   setSelectedMonth: (month: string) => void
@@ -62,18 +78,24 @@ export const useStore = create<SongshuState>()(
           }
         }
         set({ transactions: all, importResults: results })
+        return results
       },
 
       loadDemo: () => {
         let all = get().transactions
         for (const f of DEMO_FILES) {
           try {
-            all = mergeTransactions(all, parseBillText(f.text).transactions)
+            const txs = parseBillText(f.text).transactions.map((t) => ({ ...t, isDemo: true }))
+            all = mergeTransactions(all, txs)
           } catch {
             // 演示数据由单测保证，理论上不会走到这里
           }
         }
         set({ transactions: all, importResults: DEMO_FILES.map((f) => ({ name: f.name, ok: true, count: 0 })) })
+      },
+
+      clearDemo: () => {
+        set((s) => ({ transactions: s.transactions.filter((t) => !isDemoTxn(t)) }))
       },
 
       setCorrection: (id, corr) => {
