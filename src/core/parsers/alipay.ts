@@ -3,6 +3,8 @@ import type { Transaction } from '../schema'
 import { transactionId } from '../ids'
 import { findHeaderRow, monthOf, normalizeHeader, parseAmount, splitLines } from './detect'
 
+const HEADER_KEYS = [['交易时间', '交易创建时间'], ['金额'], ['收/支']]
+
 /** 支付宝"收/支"列 → 方向（"不计收支"为中性） */
 function alipayDirection(raw: string): Transaction['direction'] {
   const v = raw.trim()
@@ -11,22 +13,23 @@ function alipayDirection(raw: string): Transaction['direction'] {
   return 'neutral' // 不计收支 / 空 / 其他
 }
 
-/**
- * 解析支付宝交易流水证明 CSV（"用于个人对账"导出）。
- * 兼容新版表头（交易时间/交易分类/…/交易订单号）与旧版（交易创建时间/商品名称/交易号），
- * 列一律按表头名映射，不依赖固定列位置。
- */
+/** 解析支付宝账单 CSV 文本（"用于个人对账"导出） */
 export function parseAlipay(text: string): Transaction[] {
   const lines = splitLines(text)
-  const headerIdx = findHeaderRow(lines, [['交易时间', '交易创建时间'], ['金额'], ['收/支']])
-  if (headerIdx === -1) throw new Error('未找到支付宝账单表头：请确认导出的是"支付宝交易流水证明"CSV文件')
+  const headerIdx = findHeaderRow(lines, HEADER_KEYS)
+  if (headerIdx === -1) throw new Error('未找到支付宝账单表头：请确认导出的是"支付宝交易流水证明"文件')
+  const parsed = Papa.parse<string[]>(lines.slice(headerIdx).join('\n'), { skipEmptyLines: 'greedy' })
+  return alipayFromRows(parsed.data)
+}
 
-  const csvText = lines.slice(headerIdx).join('\n')
-  const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: 'greedy' })
-  const rows = parsed.data
-  if (rows.length < 2) throw new Error('支付宝账单内容为空')
-
-  const header = rows[0].map(normalizeHeader)
+/**
+ * 从行数组解析支付宝账单（rows[0] 为表头）。
+ * 兼容新版表头（交易时间/交易分类/…/交易订单号）与旧版（交易创建时间/商品名称/交易号），
+ * 列一律按表头名映射，不依赖固定列位置。CSV 与 Excel(xlsx) 两条导入路径在此汇合。
+ */
+export function alipayFromRows(allRows: string[][]): Transaction[] {
+  if (allRows.length < 2) throw new Error('支付宝账单内容为空')
+  const header = allRows[0].map(normalizeHeader)
   const col = (...names: string[]) => {
     for (const n of names) {
       const idx = header.findIndex((h) => h === n || h.startsWith(n))
@@ -48,8 +51,8 @@ export function parseAlipay(text: string): Transaction[] {
   const iBillNo = col('交易订单号', '交易号')
 
   const txs: Transaction[] = []
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r]
+  for (let r = 1; r < allRows.length; r++) {
+    const row = allRows[r]
     if (!row || row.length < 3) continue
     const time = (row[iTime] ?? '').trim()
     const amount = parseAmount(row[iAmount] ?? '')

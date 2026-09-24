@@ -53,12 +53,12 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
           aria-label="上传账单文件"
         >
           <div className="text-4xl">📥</div>
-          <p className="mt-3 font-medium text-ink">把账单 CSV 拖到这里，或点击选择文件</p>
-          <p className="mt-1 text-xs text-ink-soft">支持微信、支付宝导出的"用于个人对账" CSV（可多选）· 文件不会离开你的设备</p>
+          <p className="mt-3 font-medium text-ink">把账单 CSV / Excel 拖到这里，或点击选择文件</p>
+          <p className="mt-1 text-xs text-ink-soft">支持微信、支付宝导出的"用于个人对账"文件（CSV / xlsx，可多选）· 文件不会离开你的设备</p>
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -120,7 +120,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
         <GuideWeChat />
         <GuideAlipay />
         <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
-          💡 提示：账单文件是加密压缩包，解压密码会通过平台的"服务通知"下发。解压后得到 CSV 文件，再拖进上面的上传框。
+          💡 提示：账单文件是加密压缩包，解压密码会通过平台的"服务通知"下发。解压后得到 CSV 或 Excel(xlsx) 文件，再拖进上面的上传框（两种都支持）。
           邮件可能需要等待几分钟到 24 小时，属正常现象。
         </p>
       </Card>

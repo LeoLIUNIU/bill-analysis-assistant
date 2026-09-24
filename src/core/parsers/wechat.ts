@@ -3,6 +3,8 @@ import type { Transaction } from '../schema'
 import { transactionId } from '../ids'
 import { findHeaderRow, monthOf, normalizeHeader, parseAmount, splitLines } from './detect'
 
+const HEADER_KEYS = [['交易时间'], ['交易类型'], ['金额']]
+
 /** 微信"收/支"列 → 方向 */
 function wechatDirection(raw: string): Transaction['direction'] {
   const v = raw.trim()
@@ -12,21 +14,22 @@ function wechatDirection(raw: string): Transaction['direction'] {
   return 'neutral'
 }
 
-/**
- * 解析微信支付账单明细 CSV（"用于个人对账"导出）。
- * 表头：交易时间,交易类型,交易对方,商品,收/支,金额(元),支付方式,当前状态,交易单号,商户单号,备注
- */
+/** 解析微信账单 CSV 文本（"用于个人对账"导出） */
 export function parseWeChat(text: string): Transaction[] {
   const lines = splitLines(text)
-  const headerIdx = findHeaderRow(lines, [['交易时间'], ['交易类型'], ['金额']])
-  if (headerIdx === -1) throw new Error('未找到微信账单表头：请确认导出的是"微信支付账单明细"CSV文件')
+  const headerIdx = findHeaderRow(lines, HEADER_KEYS)
+  if (headerIdx === -1) throw new Error('未找到微信账单表头：请确认导出的是"微信支付账单明细"文件')
+  const parsed = Papa.parse<string[]>(lines.slice(headerIdx).join('\n'), { skipEmptyLines: 'greedy' })
+  return wechatFromRows(parsed.data)
+}
 
-  const csvText = lines.slice(headerIdx).join('\n')
-  const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: 'greedy' })
-  const rows = parsed.data
-  if (rows.length < 2) throw new Error('微信账单内容为空')
-
-  const header = rows[0].map(normalizeHeader)
+/**
+ * 从行数组解析微信账单（rows[0] 为表头）。
+ * CSV 与 Excel(xlsx) 两条导入路径在此汇合。
+ */
+export function wechatFromRows(allRows: string[][]): Transaction[] {
+  if (allRows.length < 2) throw new Error('微信账单内容为空')
+  const header = allRows[0].map(normalizeHeader)
   const col = (name: string) => header.findIndex((h) => h === name)
 
   const iTime = col('交易时间')
@@ -40,8 +43,8 @@ export function parseWeChat(text: string): Transaction[] {
   const iBillNo = col('交易单号')
 
   const txs: Transaction[] = []
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r]
+  for (let r = 1; r < allRows.length; r++) {
+    const row = allRows[r]
     if (!row || row.length < 3) continue
     const time = (row[iTime] ?? '').trim()
     const amount = parseAmount(row[iAmount] ?? '')
@@ -71,3 +74,5 @@ export function parseWeChat(text: string): Transaction[] {
   }
   return txs
 }
+
+export { HEADER_KEYS as WECHAT_HEADER_KEYS }

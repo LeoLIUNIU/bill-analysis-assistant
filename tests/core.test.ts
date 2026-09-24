@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import { ALIPAY_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
 import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/core/parsers/detect'
-import { parseBillText, processPipeline, reviewQueueOf } from '../src/core/pipeline'
+import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { countsAsFlow } from '../src/core/transfer'
@@ -72,6 +74,43 @@ describe('解析', () => {
     expect(neutrals.length).toBe(3) // 余额宝转出/转入、花呗还款
     const yuebao = alipay.transactions.find((t) => t.item.includes('余额宝-转出到银行卡'))!
     expect(yuebao.amount).toBe(1000)
+  })
+})
+
+describe('Excel(xlsx) 导入路径', () => {
+  /** 把 CSV 样本文本转成 xlsx 字节（模拟微信/支付宝导出的 Excel 账单） */
+  function csvToXlsxBytes(csvText: string): ArrayBuffer {
+    const parsed = Papa.parse<string[]>(csvText.trim(), { skipEmptyLines: false })
+    const ws = XLSX.utils.aoa_to_sheet(parsed.data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '账单明细')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('微信 xlsx 账单可解析（新版本导出格式）', async () => {
+    const buf = csvToXlsxBytes(WECHAT_SAMPLE_CSV)
+    const bill = await parseBillXlsx(buf)
+    expect(bill.platform).toBe('wechat')
+    expect(bill.transactions.length).toBe(15)
+    const luckin = bill.transactions.find((t) => t.counterparty === '瑞幸咖啡')!
+    expect(luckin.amount).toBe(15.9)
+    expect(luckin.direction).toBe('out')
+  })
+
+  it('支付宝 xlsx 账单可解析', async () => {
+    const buf = csvToXlsxBytes(ALIPAY_SAMPLE_CSV)
+    const bill = await parseBillXlsx(buf)
+    expect(bill.platform).toBe('alipay')
+    expect(bill.transactions.length).toBe(12)
+    const yuebao = bill.transactions.find((t) => t.item.includes('余额宝-转出到银行卡'))!
+    expect(yuebao.direction).toBe('neutral')
+  })
+
+  it('xlsx 与 CSV 解析结果完全一致（同一套行解析器）', async () => {
+    const fromCsv = parseBillText(WECHAT_SAMPLE_CSV)
+    const fromXlsx = await parseBillXlsx(csvToXlsxBytes(WECHAT_SAMPLE_CSV))
+    expect(fromXlsx.transactions.map((t) => [t.time, t.amount, t.direction, t.billNo]))
+      .toEqual(fromCsv.transactions.map((t) => [t.time, t.amount, t.direction, t.billNo]))
   })
 })
 
