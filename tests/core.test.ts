@@ -8,6 +8,7 @@ import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/c
 import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
+import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
 import { countsAsFlow } from '../src/core/transfer'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -219,6 +220,50 @@ describe('月度聚合与环比', () => {
     expect(momDiff(100, undefined).pct).toBeNull()
     expect(prevMonth('2025-08')).toBe('2025-07')
     expect(prevMonth('2025-01')).toBe('2024-12')
+  })
+})
+
+describe('洞察引擎', () => {
+  const merged = [
+    ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+    ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+  ]
+  const processed = processPipeline(merged, {})
+  const monthTx = processed.filter((t) => t.month === '2025-08')
+  const agg = aggregateMonth('2025-08', processed)
+
+  it('演示数据生成非空洞察，含结余率预警', () => {
+    const insights = generateInsights(monthTx, agg, undefined, '2025-08')
+    expect(insights.length).toBeGreaterThan(3)
+    const savings = insights.find((i) => i.id === 'savings') ?? insights.find((i) => i.id === 'no-income')
+    expect(savings).toBeDefined()
+    expect(savings!.kind).toBe('warn') // 演示数据入不敷出
+    expect(insights.find((i) => i.id === 'top-cat')!.title).toContain('住房水电')
+  })
+
+  it('洞察数量有上限', () => {
+    expect(generateInsights(monthTx, agg).length).toBeLessThanOrEqual(8)
+  })
+
+  it('周内规律：7天合计等于支出总额', () => {
+    const sums = weekdaySums(monthTx)
+    expect(sums.length).toBe(7)
+    const total = sums.reduce((s, v) => s + v, 0)
+    expect(Math.round(total * 100)).toBe(Math.round(agg.expense * 100))
+  })
+
+  it('单笔分布：笔数与金额守恒', () => {
+    const buckets = amountBuckets(monthTx)
+    const outs = monthTx.filter((t) => t.direction === 'out' && countsAsFlow(t))
+    expect(buckets.reduce((s, b) => s + b.count, 0)).toBe(outs.length)
+    expect(Math.round(buckets.reduce((s, b) => s + b.sum, 0) * 100)).toBe(Math.round(agg.expense * 100))
+  })
+
+  it('分类环比行：新增类目标记正确', () => {
+    const prev = { ...agg, byCategory: { 餐饮美食: 50 } }
+    const rows = categoryRows(agg, prev)
+    expect(rows.find((r) => r.name === '餐饮美食')!.diffPct).toBeGreaterThan(1)
+    expect(rows.find((r) => r.name === '住房水电')!.previous).toBeUndefined()
   })
 })
 
