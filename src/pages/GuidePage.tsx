@@ -26,16 +26,14 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
     }
   }, [allTx])
   const [dragging, setDragging] = useState(false)
-  const [selected, setSelected] = useState<string[]>([])
+  /** 单选查看：一次只展示一个APP的账单下载路径，再点一次收起 */
   const [guideKey, setGuideKey] = useState<string | null>('wechat')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const guideApp: FinanceApp | null = FINANCE_APPS.find((a) => a.key === guideKey) ?? null
-  const supportedSelected = selected.filter((k) => FINANCE_APPS.find((a) => a.key === k)?.supported)
 
   const toggleApp = (key: string) => {
-    setSelected((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]))
-    setGuideKey(key)
+    setGuideKey((cur) => (cur === key ? null : key))
   }
 
   /** 上传只入库不跳转——支持先传完所有文件，再点「一键分析」 */
@@ -55,10 +53,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
     document.getElementById('step-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const uploadHint =
-    supportedSelected.length > 0
-      ? `把${supportedSelected.map((k) => FINANCE_APPS.find((a) => a.key === k)!.name).join('、')}的账单文件拖到这里`
-      : '把微信 / 支付宝账单文件拖到这里'
+  const uploadHint = '把微信 / 支付宝账单文件拖到这里'
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -120,27 +115,25 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
         </div>
       )}
 
-      {/* ---------- Step 01 选APP ---------- */}
+      {/* ---------- Step 01 如何下载账单 ---------- */}
       <section id="step-1" className="scroll-mt-20">
-        <StepHeading no="01" title="选择你在用的金融APP" desc="点击图标查看该APP的账单导出路径；再点一次勾选/取消。" />
+        <StepHeading no="01" title="如何下载金融APP账单" desc="点击APP图标查看对应的账单下载路径（一次查看一个，再点一次收起）。" />
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
           {FINANCE_APPS.map((app) => {
-            const on = selected.includes(app.key)
+            const active = guideKey === app.key
             return (
               <button
                 key={app.key}
                 onClick={() => toggleApp(app.key)}
                 className={`group relative flex flex-col items-center gap-2 rounded-2xl p-3 pb-2.5 transition-all ${
-                  on
+                  active
                     ? 'bg-brand-50 ring-2 ring-brand-500'
-                    : guideKey === app.key
-                      ? 'bg-white ring-2 ring-stone-300'
-                      : 'bg-white ring-1 ring-stone-200 hover:-translate-y-0.5 hover:shadow-md'
+                    : 'bg-white ring-1 ring-stone-200 hover:-translate-y-0.5 hover:shadow-md'
                 }`}
               >
-                {on && (
+                {active && (
                   <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white shadow">
-                    ✓
+                    ▾
                   </span>
                 )}
                 <span
@@ -227,22 +220,6 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
               onChange={(e) => { pickFiles(e.target.files); e.target.value = '' }}
             />
           </div>
-
-          {selected.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-stone-100 px-4 py-3 text-xs">
-              <span className="text-ink-soft">我选择的APP：</span>
-              {selected.map((k) => {
-                const app = FINANCE_APPS.find((a) => a.key === k)!
-                return (
-                  <span key={k} className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 font-medium text-ink">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: app.color }} />
-                    {app.name}
-                    {app.supported ? ' ✓' : '（即将支持）'}
-                  </span>
-                )
-              })}
-            </div>
-          )}
         </Card>
 
         {/* 导入结果 */}

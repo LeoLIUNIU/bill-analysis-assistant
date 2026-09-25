@@ -1,5 +1,5 @@
 import type { Insight } from './insights'
-import type { BreakdownRow, CategoryDetail, RecurringExpense } from './analysis'
+import type { BreakdownRow, CategoryDetail, DeepMining, RecurringExpense } from './analysis'
 import type { MonthlyAggregate } from './schema'
 import type { PersonaResult } from './persona'
 
@@ -18,6 +18,7 @@ export interface ReportData {
   recurring: RecurringExpense[]
   persona: PersonaResult | null
   txnCount: number
+  mining?: DeepMining
 }
 
 const fmt = (n: number) => n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -72,8 +73,41 @@ export function buildReportHTML(d: ReportData): string {
     )
     .join('')
 
-  const personaBlock = d.persona
-    ? `<div class="persona">
+  const miningBlock = (() => {
+    const m = d.mining
+    if (!m) return ''
+    const subs = m.subscriptions.length > 0
+      ? `<h2>🗡️ 扣费刺客（月均 ¥${fmt(m.subscriptionMonthlyTotal)}）</h2>
+         <table><thead><tr><th>项目</th><th>分类</th><th class="r">月均</th><th class="r">连续月数</th><th class="r">最近扣费</th></tr></thead>
+         <tbody>${m.subscriptions.slice(0, 10).map((s) => `<tr><td>${esc(s.name)}${s.autoRenew ? '（自动续费）' : ''}</td><td>${esc(s.category)}</td><td class="r">¥${fmt(s.monthlyAvg)}</td><td class="r">${s.months}</td><td class="r">${esc(s.lastDate)}</td></tr>`).join('')}</tbody></table>`
+      : ''
+    const lattes = m.lattes.length > 0
+      ? `<h2>☕ 拿铁因子（高频小额累计 ¥${fmt(m.latteTotal)}）</h2>
+         <table><thead><tr><th>商户</th><th class="r">次数</th><th class="r">单均</th><th class="r">合计</th></tr></thead>
+         <tbody>${m.lattes.slice(0, 8).map((l) => `<tr><td>${esc(l.name)}</td><td class="r">${l.count}</td><td class="r">¥${fmt(l.avg)}</td><td class="r">¥${fmt(l.total)}</td></tr>`).join('')}</tbody></table>`
+      : ''
+    const emo = m.emotional
+    const emoAny = emo.night.count + emo.monthStart.count + emo.monthEnd.count > 0
+    const emoBlock = emoAny
+      ? `<h2>🌙 情绪消费</h2>
+         <div class="stats">
+          ${statCard('深夜（23–6点）', emo.night.count > 0 ? `¥${fmt(emo.night.total)}` : '无', emo.night.count > 0 ? `${emo.night.count} 笔` : '')}
+          ${statCard('月初（1–3号）', emo.monthStart.count > 0 ? `¥${fmt(emo.monthStart.total)}` : '无', emo.monthStart.count > 0 ? `${emo.monthStart.count} 笔` : '')}
+          ${statCard('月底（25号后）', emo.monthEnd.count > 0 ? `¥${fmt(emo.monthEnd.total)}` : '无', emo.monthEnd.count > 0 ? `${emo.monthEnd.count} 笔` : '')}
+         </div>`
+      : ''
+    const good = m.selfInvest.total > 0
+      ? `<h2>🌱 被忽略的好消费</h2>
+         <div class="stats">
+          ${statCard('投资自己', `¥${fmt(m.selfInvest.total)}`, `${m.selfInvest.categories.join(' · ')} · ${m.selfInvest.count} 笔`)}
+          ${m.thrifty.total > 0 ? statCard('省钱型自购', `¥${fmt(m.thrifty.total)}`, `超市/生鲜 ${m.thrifty.count} 笔`) : ''}
+          ${m.takeawayTotal > 0 ? statCard('对照：外卖餐饮', `¥${fmt(m.takeawayTotal)}`) : ''}
+         </div>`
+      : ''
+    return subs + lattes + emoBlock + good
+  })()
+
+  const personaBlock = d.persona    ? `<div class="persona">
         <div class="p-emoji">${d.persona.primary.emoji}</div>
         <div class="p-name">${esc(d.persona.primary.name)}型 · ${esc(d.persona.primary.epithet)}</div>
         ${d.persona.secondary && d.persona.mix ? `<div class="p-mix">${d.persona.mix[0]}% ${esc(d.persona.primary.name)} + ${d.persona.mix[1]}% ${esc(d.persona.secondary.name)} ${d.persona.secondary.emoji}</div>` : ''}
@@ -164,6 +198,8 @@ export function buildReportHTML(d: ReportData): string {
 
   <h2>🐾 消费人格</h2>
   ${personaBlock || '<div class="persona"><div class="p-copy">数据不足，未生成消费人格</div></div>'}
+
+  ${miningBlock}
 
   <footer>账单分析助手 · 数据全程本地处理 · 内部转账/还款已自动对冲，不计入收支</footer>
 </div>

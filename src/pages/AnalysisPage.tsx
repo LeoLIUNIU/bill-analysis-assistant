@@ -14,6 +14,7 @@ import {
 } from '../core/insights'
 import {
   categoryDetails,
+  deepMining,
   incomeBreakdown,
   payMethodBreakdown,
   recurringExpenses,
@@ -60,6 +61,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   const payMethods = useMemo(() => payMethodBreakdown(monthTx), [monthTx])
   const incomes = useMemo(() => incomeBreakdown(monthTx), [monthTx])
   const recurring = useMemo(() => recurringExpenses(processed), [processed])
+  const mining = useMemo(() => deepMining(monthTx, processed), [monthTx, processed])
   const persona = useMemo(() => computePersona(monthTx), [monthTx])
 
   const handleDownloadReport = () => {
@@ -74,6 +76,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
       recurring,
       persona,
       txnCount: agg.txnCount,
+      mining,
     }
     downloadReport(data)
   }
@@ -168,7 +171,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
           insights={insights} incomes={incomes} payMethods={payMethods} />
       )}
       {tab === 'spending' && (
-        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} />
+        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} />
       )}
       {tab === 'transactions' && (
         <TransactionsTab processed={processed} queue={queue} months={allMonths} correctionsCount={Object.keys(corrections).length} />
@@ -346,12 +349,13 @@ function InsightCard({ ins }: { ins: Insight }) {
 
 /* ================= Tab 2: 花费分析 ================= */
 
-function SpendingTab({ agg, prev, monthTx, catDetails, recurring }: {
+function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
   catDetails: CategoryDetail[]
   recurring: ReturnType<typeof recurringExpenses>
+  mining: ReturnType<typeof deepMining>
 }) {
   const [expanded, setExpanded] = useState<string | null>(catDetails[0]?.name ?? null)
 
@@ -367,6 +371,9 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring }: {
 
   return (
     <div className="mt-5 space-y-5">
+      {/* 深度挖掘 */}
+      <DeepMiningCard mining={mining} expense={agg.expense} />
+
       {/* 固定支出 */}
       {recurring.length > 0 && (
         <Card className="p-5">
@@ -559,6 +566,176 @@ function MiniStat({ label, value, sub }: { label: string; value: string; sub?: s
       <div className="text-[11px] text-ink-soft">{label}</div>
       <div className="mt-0.5 text-sm font-bold text-ink">{value}</div>
       {sub && <div className="mt-0.5 truncate text-[10px] text-slate-400" title={sub}>{sub}</div>}
+    </div>
+  )
+}
+
+/* ================= 深度挖掘卡片 ================= */
+
+function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMining>; expense: number }) {
+  const { subscriptions, subscriptionMonthlyTotal, lattes, latteTotal, selfInvest, thrifty, takeawayTotal, emotional } = mining
+  const hasAny =
+    subscriptions.length > 0 || lattes.length > 0 || selfInvest.total > 0 ||
+    emotional.night.count > 0 || emotional.monthStart.count > 0 || emotional.monthEnd.count > 0
+  if (!hasAny) return null
+
+  const yearCost = (monthly: number) => `折算一年 ¥${fmtMoney(monthly * 12)}`
+
+  return (
+    <Card className="p-5 ring-1 ring-brand-100">
+      <SectionTitle
+        emoji="⛏️"
+        title="深度挖掘"
+        desc="账单背后容易被忽视的地方——每一条都来自你的真实数据。"
+      />
+      <div className="space-y-4">
+        {/* 扣费刺客 */}
+        {subscriptions.length > 0 && (
+          <MiningBlock
+            tone="danger"
+            icon="🗡️"
+            title={`扣费刺客 · 每月悄悄扣走 ¥${fmtMoney(subscriptionMonthlyTotal)}`}
+            subtitle={yearCost(subscriptionMonthlyTotal)}
+          >
+            {subscriptions.slice(0, 6).map((s) => (
+              <div key={s.name} className="flex items-center gap-2.5 text-xs">
+                <span className="w-40 truncate font-medium text-ink" title={s.name}>
+                  {s.name}{s.autoRenew && <span className="ml-1 rounded bg-rose-100 px-1 py-px text-[10px] text-rose-600">自动续费</span>}
+                </span>
+                <span className="text-ink-soft">{s.category}</span>
+                <span className="ml-auto shrink-0 text-ink-soft">连续 {s.months} 个月 · 最近 {s.lastDate}</span>
+                <span className="w-20 shrink-0 text-right font-bold text-ink">¥{fmtMoney(s.monthlyAvg)}/月</span>
+              </div>
+            ))}
+            <p className="pt-1 text-[11px] leading-relaxed text-slate-400">
+              周期性小额扣费，单次不起眼、全年加起来 ¥{fmtMoney(subscriptionMonthlyTotal * 12)}。不用的会员，现在去关还来得及。
+            </p>
+          </MiningBlock>
+        )}
+
+        {/* 拿铁因子 */}
+        {lattes.length > 0 && (
+          <MiningBlock
+            tone="warn"
+            icon="☕"
+            title={`拿铁因子 · 高频小额累计 ¥${fmtMoney(latteTotal)}`}
+            subtitle={`单笔 ≤¥50 且 ≥4 次的同一消费`}
+          >
+            {lattes.slice(0, 5).map((l) => (
+              <div key={l.name} className="flex items-center gap-2.5 text-xs">
+                <span className="w-40 truncate font-medium text-ink" title={l.name}>{l.name}</span>
+                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-amber-400" style={{ width: `${(l.total / lattes[0].total) * 100}%` }} />
+                </div>
+                <span className="shrink-0 text-ink-soft">{l.count} 次 · 均 ¥{fmtMoney(l.avg)}</span>
+                <span className="w-20 shrink-0 text-right font-bold text-ink">¥{fmtMoney(l.total)}</span>
+              </div>
+            ))}
+            <p className="pt-1 text-[11px] leading-relaxed text-slate-400">
+              每次 ¥{fmtMoney(lattes[0].avg)} 不多，但 {lattes[0].count} 次加起来就是 ¥{fmtMoney(lattes[0].total)}——这就是经典的"拿铁因子"。
+            </p>
+          </MiningBlock>
+        )}
+
+        {/* 投资自己 / 省钱 */}
+        {(selfInvest.total > 0 || thrifty.total > 0) && (
+          <MiningBlock
+            tone="good"
+            icon="🌱"
+            title="被忽略的好消费"
+            subtitle="花在自己身上的钱，值得被看见"
+          >
+            <div className="grid gap-2.5 sm:grid-cols-3">
+              {selfInvest.total > 0 && (
+                <div className="rounded-xl bg-emerald-50 px-3.5 py-3">
+                  <div className="text-xs font-semibold text-emerald-700">📚 投资自己</div>
+                  <div className="mt-1 text-lg font-bold text-emerald-800">¥{fmtMoney(selfInvest.total)}</div>
+                  <div className="mt-0.5 text-[11px] text-emerald-600">{selfInvest.categories.join(' · ')} · {selfInvest.count} 笔{expense > 0 ? ` · 占支出 ${Math.round((selfInvest.total / expense) * 100)}%` : ''}</div>
+                </div>
+              )}
+              {thrifty.total > 0 && (
+                <div className="rounded-xl bg-teal-50 px-3.5 py-3">
+                  <div className="text-xs font-semibold text-teal-700">🛒 省钱型消费</div>
+                  <div className="mt-1 text-lg font-bold text-teal-800">¥{fmtMoney(thrifty.total)}</div>
+                  <div className="mt-0.5 text-[11px] text-teal-600">超市/生鲜自购 {thrifty.count} 笔{takeawayTotal > 0 ? ` · 同期外卖 ¥${fmtMoney(takeawayTotal)}` : ''}</div>
+                </div>
+              )}
+              {takeawayTotal > 0 && (
+                <div className="rounded-xl bg-slate-50 px-3.5 py-3">
+                  <div className="text-xs font-semibold text-slate-500">🛵 对照：外卖餐饮</div>
+                  <div className="mt-1 text-lg font-bold text-slate-700">¥{fmtMoney(takeawayTotal)}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{thrifty.total > 0 ? `自购食材每花 ¥1，外卖花了 ¥${(takeawayTotal / Math.max(thrifty.total, 0.01)).toFixed(1)}` : '多为解决型就餐'}</div>
+                </div>
+              )}
+            </div>
+          </MiningBlock>
+        )}
+
+        {/* 情绪消费 */}
+        {(emotional.night.count > 0 || emotional.monthStart.count > 0 || emotional.monthEnd.count > 0) && (
+          <MiningBlock
+            tone="info"
+            icon="🌙"
+            title="特定时刻的情绪消费"
+            subtitle="深夜、月初、月底的弹性支出——那时候花的钱，往往不是刚需"
+          >
+            <div className="grid gap-2.5 sm:grid-cols-3">
+              <WindowChip label="🌙 深夜（23:00–6:00）" win={emotional.night} color="indigo" />
+              <WindowChip label="🌅 月初（1–3号）" win={emotional.monthStart} color="sky" />
+              <WindowChip label="🌇 月底（25号后）" win={emotional.monthEnd} color="rose" />
+            </div>
+            {(emotional.night.examples.length > 0 || emotional.monthStart.examples.length > 0) && (
+              <div className="mt-2.5 space-y-1 text-[11px] leading-relaxed text-slate-400">
+                {emotional.night.examples.slice(0, 2).map((e, i) => (
+                  <div key={'n' + i}>深夜：{e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
+                ))}
+                {emotional.monthStart.examples.slice(0, 1).map((e, i) => (
+                  <div key={'s' + i}>月初：{e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
+                ))}
+              </div>
+            )}
+          </MiningBlock>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+function MiningBlock({ tone, icon, title, subtitle, children }: {
+  tone: 'danger' | 'warn' | 'good' | 'info'
+  icon: string
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
+  const tones = {
+    danger: { bar: '#f43f5e', bg: '#fff1f2' },
+    warn: { bar: '#f59e0b', bg: '#fffbeb' },
+    good: { bar: '#10b981', bg: '#ecfdf5' },
+    info: { bar: '#6366f1', bg: '#eef2ff' },
+  }[tone]
+  return (
+    <div className="rounded-xl p-4" style={{ backgroundColor: tones.bg, boxShadow: `inset 3px 0 0 ${tones.bar}` }}>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <span className="text-sm font-bold text-ink">{icon} {title}</span>
+        <span className="text-[11px] text-slate-500">{subtitle}</span>
+      </div>
+      <div className="mt-3 space-y-2">{children}</div>
+    </div>
+  )
+}
+
+function WindowChip({ label, win, color }: { label: string; win: { total: number; count: number }; color: 'indigo' | 'sky' | 'rose' }) {
+  const colors = {
+    indigo: 'bg-indigo-50 text-indigo-700 [&_b]:text-indigo-800',
+    sky: 'bg-sky-50 text-sky-700 [&_b]:text-sky-800',
+    rose: 'bg-rose-50 text-rose-700 [&_b]:text-rose-800',
+  }[color]
+  return (
+    <div className={`rounded-xl px-3.5 py-3 ${colors}`}>
+      <div className="text-xs font-semibold">{label}</div>
+      <div className="mt-1 text-lg font-bold">{win.count > 0 ? `¥${fmtMoney(win.total)}` : '无'}</div>
+      <div className="mt-0.5 text-[11px] opacity-70">{win.count > 0 ? `${win.count} 笔弹性支出` : '这个时段很克制'}</div>
     </div>
   )
 }

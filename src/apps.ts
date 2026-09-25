@@ -139,7 +139,50 @@ const BANKS: FinanceApp[] = [
   },
 ]
 
-export const FINANCE_APPS: FinanceApp[] = [WECHAT, ALIPAY, ...BANKS]
+/** 购物/生活平台：消费多经微信/支付宝/银行卡支付，账单可从支付渠道覆盖 */
+const SHOP_APPS: FinanceApp[] = [
+  {
+    key: 'jd', name: '京东', logoChar: '京', color: '#e1251b', color2: '#b01d16',
+    supported: false,
+    steps: [
+      '京东APP → 我的 → 我的钱包 → 账单',
+      '可查看京东系消费记录',
+      '京东消费大多通过微信 / 支付宝 / 银行卡支付，可从支付渠道账单覆盖',
+    ],
+    note: '支付渠道账单已含京东消费',
+  },
+  {
+    key: 'taobao', name: '淘宝', logoChar: '淘', color: '#ff5000', color2: '#d94400',
+    supported: false,
+    steps: [
+      '淘宝购物默认通过支付宝付款',
+      '淘宝消费会出现在支付宝账单的「淘宝购物」分类中',
+      '淘宝APP → 我的淘宝 → 钱包 可查订单记录',
+    ],
+    note: '上传支付宝账单即可覆盖',
+  },
+  {
+    key: 'pdd', name: '拼多多', logoChar: '拼', color: '#e02e24', color2: '#b8241d',
+    supported: false,
+    steps: [
+      '拼多多APP → 个人中心 → 我的订单 查看消费记录',
+      '支付走微信 / 支付宝，可从支付渠道账单覆盖',
+    ],
+    note: '支付渠道账单已含拼多多消费',
+  },
+  {
+    key: 'meituan', name: '美团', logoChar: '美', color: '#f59e0b', color2: '#d97706',
+    supported: false,
+    steps: [
+      '美团APP → 我的 → 钱包 → 账单',
+      '可查看美团系（外卖/到店/酒旅）消费记录',
+      '支付多走微信 / 支付宝 / 银行卡，可从支付渠道账单覆盖',
+    ],
+    note: '支付渠道账单已含美团消费',
+  },
+]
+
+export const FINANCE_APPS: FinanceApp[] = [WECHAT, ALIPAY, ...BANKS, ...SHOP_APPS]
 
 export function appOf(key: string): FinanceApp | undefined {
   return FINANCE_APPS.find((a) => a.key === key)

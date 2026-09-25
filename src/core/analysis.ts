@@ -145,7 +145,7 @@ export interface RecurringExpense {
   lastAmount: number
 }
 
-export function recurringExpenses(txs: Transaction[]): RecurringExpense[] {
+export function recurringExpenses(txs: Transaction[], minAmount = 30): RecurringExpense[] {
   const byParty = new Map<string, Transaction[]>()
   for (const t of txs) {
     if (t.direction !== 'out' || !countsAsFlow(t)) continue
@@ -168,8 +168,8 @@ export function recurringExpenses(txs: Transaction[]): RecurringExpense[] {
     const amounts = perMonth.map((t) => t.amount)
     const min = Math.min(...amounts)
     const max = Math.max(...amounts)
-    // 金额波动需在 ±15% 内，且单笔不能太小（过滤每天买咖啡）
-    if (max === 0 || min / max < 0.85 || min < 30) continue
+    // 金额波动需在 ±15% 内，且单笔不能太小（按调用方门槛过滤）
+    if (max === 0 || min / max < 0.85 || min < minAmount) continue
     if (list.length / months.length > 2) continue
 
     const avg = amounts.reduce((s, v) => s + v, 0) / amounts.length
@@ -182,4 +182,159 @@ export function recurringExpenses(txs: Transaction[]): RecurringExpense[] {
     })
   }
   return out.sort((a, b) => b.avgAmount - a.avgAmount)
+}
+
+/* ================= 深度挖掘：账单背后容易被忽视的地方 ================= */
+
+/** 扣费刺客：月均 ≤100 的周期性扣费（订阅/会员/自动续费），单笔不起眼、全年累加可观 */
+export interface SubscriptionAssassin {
+  name: string
+  category: string
+  monthlyAvg: number
+  months: number
+  lastDate: string
+  /** 命中自动续费类关键词 */
+  autoRenew: boolean
+}
+
+/** 拿铁因子：单次小、频率高、加起来多的消费（同一商户） */
+export interface LatteFactor {
+  name: string
+  count: number
+  total: number
+  avg: number
+  category: string
+}
+
+export interface WindowStat {
+  total: number
+  count: number
+  examples: Array<{ name: string; amount: number; date: string }>
+}
+
+export interface DeepMining {
+  subscriptions: SubscriptionAssassin[]
+  subscriptionMonthlyTotal: number
+  lattes: LatteFactor[]
+  latteTotal: number
+  /** 投资自己：学习成长 + 医疗健康 */
+  selfInvest: { total: number; count: number; categories: string[] }
+  /** 省钱型消费：超市/生鲜自购（对比外卖） */
+  thrifty: { total: number; count: number }
+  takeawayTotal: number
+  /** 情绪消费：深夜 / 月初 / 月底的弹性支出 */
+  emotional: { night: WindowStat; monthStart: WindowStat; monthEnd: WindowStat }
+}
+
+const AUTO_RENEW_WORDS = ['会员', '续费', '订阅', 'vip', '云服务', '网盘', '自动续费', '音乐', '视频', '爱奇艺', '腾讯视频', '优酷', 'bilibili', '哔哩哔哩', '得到', '知乎', '网课']
+const LATTE_MIN_COUNT = 4
+const LATTE_MAX_AVG = 50
+const TAKEAWAY_WORDS = ['外卖', '美团', '饿了么', '肯德基', '麦当劳', '必胜客', '瑞幸', '星巴克', '奶茶', '咖啡']
+const THRIFTY_WORDS = ['超市', '盒马', '叮咚', '买菜', '生鲜', '山姆', '菜市场', '永辉', '物美']
+/** 弹性消费分类（情绪消费只看这些；房租水电话费不算情绪） */
+const DISCRETIONARY = new Set(['餐饮美食', '文娱休闲', '服饰美容', '日常购物', '其他支出'])
+
+function emptyWindow(): WindowStat {
+  return { total: 0, count: 0, examples: [] }
+}
+
+/**
+ * 深度挖掘。
+ * @param txs 当前分析范围的流水（决定统计窗口）
+ * @param allTxs 全部流水（跨月，用于识别周期性扣费）
+ */
+export function deepMining(txs: Transaction[], allTxs: Transaction[]): DeepMining {
+  const outs = txs.filter((t) => t.direction === 'out' && countsAsFlow(t))
+  const allOuts = allTxs.filter((t) => t.direction === 'out' && countsAsFlow(t))
+
+  // —— 1. 扣费刺客：周期性小额扣费（允许 ¥15 级的视频会员类订阅） ——
+  const recurring = recurringExpenses(allTxs, 1)
+  const subscriptions: SubscriptionAssassin[] = []
+  for (const r of recurring) {
+    if (r.avgAmount > 100 || r.avgAmount <= 0) continue
+    const related = allOuts.filter((t) => (t.counterparty || t.item).trim() === r.counterparty)
+    const lastDate = related.length > 0 ? related.reduce((a, b) => (b.time > a.time ? b : a)).time.slice(0, 10) : ''
+    subscriptions.push({
+      name: r.counterparty,
+      category: r.category,
+      monthlyAvg: r.avgAmount,
+      months: r.months.length,
+      lastDate,
+      autoRenew: AUTO_RENEW_WORDS.some((w) => r.counterparty.toLowerCase().includes(w) || r.category.includes(w)),
+    })
+  }
+  const subscriptionMonthlyTotal = Math.round(subscriptions.reduce((s, r) => s + r.monthlyAvg, 0) * 100) / 100
+
+  // —— 2. 拿铁因子：高频小额同一商户 ——
+  const byParty = new Map<string, Transaction[]>()
+  for (const t of outs) {
+    const key = (t.counterparty || t.item || '').trim()
+    if (!key || key === '/') continue
+    const list = byParty.get(key) ?? []
+    list.push(t)
+    byParty.set(key, list)
+  }
+  const lattes: LatteFactor[] = []
+  for (const [name, list] of byParty) {
+    const total = list.reduce((s, t) => s + t.amount, 0)
+    const avg = total / list.length
+    if (list.length >= LATTE_MIN_COUNT && avg <= LATTE_MAX_AVG) {
+      lattes.push({
+        name,
+        count: list.length,
+        total: Math.round(total * 100) / 100,
+        avg: Math.round(avg * 100) / 100,
+        category: list[0].category,
+      })
+    }
+  }
+  lattes.sort((a, b) => b.total - a.total)
+  const latteTotal = Math.round(lattes.reduce((s, l) => s + l.total, 0) * 100) / 100
+
+  // —— 3. 投资自己 / 省钱型消费 ——
+  const investCats = ['学习成长', '医疗健康']
+  const selfInvestTx = outs.filter((t) => investCats.includes(t.category))
+  const selfInvest = {
+    total: Math.round(selfInvestTx.reduce((s, t) => s + t.amount, 0) * 100) / 100,
+    count: selfInvestTx.length,
+    categories: [...new Set(selfInvestTx.map((t) => t.category))],
+  }
+
+  const thriftyTx = outs.filter((t) => {
+    const text = `${t.counterparty}${t.item}`.toLowerCase()
+    return THRIFTY_WORDS.some((w) => text.includes(w))
+  })
+  const thrifty = {
+    total: Math.round(thriftyTx.reduce((s, t) => s + t.amount, 0) * 100) / 100,
+    count: thriftyTx.length,
+  }
+  const takeawayTotal =
+    Math.round(outs.filter((t) => TAKEAWAY_WORDS.some((w) => `${t.counterparty}${t.item}`.toLowerCase().includes(w)))
+      .reduce((s, t) => s + t.amount, 0) * 100) / 100
+
+  // —— 4. 情绪消费：深夜 / 月初 / 月底 ——
+  const disc = outs.filter((t) => DISCRETIONARY.has(t.category))
+  const night = emptyWindow()
+  const monthStart = emptyWindow()
+  const monthEnd = emptyWindow()
+  for (const t of disc) {
+    const hour = Number.parseInt(t.time.slice(11, 13), 10)
+    const day = Number.parseInt(t.time.slice(8, 10), 10)
+    let win: WindowStat | null = null
+    if (hour >= 23 || hour < 6) win = night
+    else if (day <= 3) win = monthStart
+    else if (day >= 25) win = monthEnd
+    if (win) {
+      win.total += t.amount
+      win.count++
+      win.examples.push({ name: t.counterparty || t.item, amount: t.amount, date: t.time.slice(5, 10) })
+    }
+  }
+  for (const w of [night, monthStart, monthEnd]) {
+    w.total = Math.round(w.total * 100) / 100
+    w.examples.sort((a, b) => b.amount - a.amount)
+    w.examples = w.examples.slice(0, 3)
+  }
+
+  return { subscriptions, subscriptionMonthlyTotal, lattes, latteTotal, selfInvest, thrifty, takeawayTotal, emotional: { night, monthStart, monthEnd } }
 }

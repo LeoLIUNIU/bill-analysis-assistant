@@ -9,7 +9,7 @@ import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '..
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
-import { categoryDetails, incomeBreakdown, payMethodBreakdown, recurringExpenses } from '../src/core/analysis'
+import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses } from '../src/core/analysis'
 import { buildReportHTML } from '../src/core/report'
 import { countsAsFlow } from '../src/core/transfer'
 
@@ -321,6 +321,43 @@ describe('深度分析引擎', () => {
     expect(rec.length).toBe(1)
     expect(rec[0].counterparty).toBe('房东')
     expect(rec[0].months.length).toBe(2)
+  })
+
+  it('深度挖掘：情绪消费识别深夜/月初窗口', () => {
+    const m = deepMining(monthTx, processed)
+    // 演示数据：23:45 夜宵 ¥45 属餐饮（弹性分类）
+    expect(m.emotional.night.total).toBe(45)
+    expect(m.emotional.night.count).toBe(1)
+    // 8月1-3号：瑞幸15.9 + 饿了么28.5 + 美团外卖26.5 = 70.9（转账/充值不计）
+    expect(Math.round(m.emotional.monthStart.total * 100)).toBe(7090)
+    // 演示数据最多8/22，无月底消费
+    expect(m.emotional.monthEnd.count).toBe(0)
+  })
+
+  it('深度挖掘：投资自己与省钱型消费', () => {
+    const m = deepMining(monthTx, processed)
+    expect(m.selfInvest.total).toBe(30) // 好大夫在线问诊（医疗健康）
+    expect(m.selfInvest.categories).toContain('医疗健康')
+    expect(m.takeawayTotal).toBe(70.9) // 瑞幸15.9 + 美团26.5 + 饿了么28.5
+  })
+
+  it('深度挖掘：扣费刺客需要跨月数据，单月为空', () => {
+    const m = deepMining(monthTx, monthTx)
+    expect(m.subscriptions).toEqual([])
+  })
+
+  it('深度挖掘：构造跨月订阅识别为刺客', () => {
+    const mk = (month: string, id: string) => ({
+      ...processed[0], id, month, time: `${month}-05 09:00:00`, direction: 'out' as const,
+      amount: 25, counterparty: '某视频会员', category: '文娱休闲',
+      transferFlag: null, flagSource: null, confidence: 1,
+    })
+    const all = [...monthTx, mk('2025-07', 's1'), mk('2025-08', 's2')]
+    const m = deepMining(monthTx, all)
+    expect(m.subscriptions.length).toBe(1)
+    expect(m.subscriptions[0].name).toBe('某视频会员')
+    expect(m.subscriptions[0].autoRenew).toBe(true)
+    expect(m.subscriptionMonthlyTotal).toBe(25)
   })
 
   it('分析报告HTML生成：自包含且包含关键区块', () => {
