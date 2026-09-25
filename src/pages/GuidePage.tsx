@@ -211,11 +211,11 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
           >
             <div className="text-4xl">📥</div>
             <p className="mt-3 font-medium text-ink">{uploadHint}，或点击选择文件</p>
-            <p className="mt-1 text-xs text-ink-soft">CSV / Excel(xlsx) 均可 · 可多选 · 文件不会离开你的设备</p>
+            <p className="mt-1 text-xs text-ink-soft">CSV / Excel(xlsx) / PDF 均可 · 可多选 · 文件不会离开你的设备</p>
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,.xlsx,.xls,text/csv"
+              accept=".csv,.xlsx,.xls,.pdf,text/csv"
               multiple
               className="hidden"
               onChange={(e) => { pickFiles(e.target.files); e.target.value = '' }}

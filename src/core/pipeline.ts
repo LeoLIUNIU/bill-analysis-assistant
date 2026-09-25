@@ -98,11 +98,15 @@ export async function parseBillXlsx(buf: ArrayBuffer): Promise<ParsedBill> {
   throw new Error(ERR_FORMAT)
 }
 
-/** 文件入口：按扩展名分发。CSV 自动解码（UTF-8 / GBK），Excel 走 SheetJS。 */
+/** 文件入口：按扩展名分发。CSV 自动解码（UTF-8 / GBK），Excel 走 SheetJS，PDF 走 pdf.js。 */
 export async function parseBillFile(file: File): Promise<ParsedBill> {
   const name = file.name.toLowerCase()
   if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
     return parseBillXlsx(await file.arrayBuffer())
+  }
+  if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+    const { parseBillPdf } = await import('./parsers/pdf')
+    return parseBillPdf(await file.arrayBuffer())
   }
   return parseBillText(decodeBuffer(await file.arrayBuffer()))
 }

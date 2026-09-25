@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'
 import { ALIPAY_SAMPLE_CSV, CMB_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
 import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/core/parsers/detect'
 import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
+import { groupPdfTextItems, pdfRowsToBill } from '../src/core/parsers/pdf'
+import { parseBankDate } from '../src/core/parsers/bank'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
@@ -468,6 +470,80 @@ describe('银行账单解析', () => {
     const transfer = processed.find((t) => t.item.includes('转账支出'))!
     expect(transfer.direction).toBe('out')
     expect(countsAsFlow(transfer)).toBe(true)
+  })
+})
+
+describe('PDF 账单解析', () => {
+  const item = (str: string, x: number, y: number, w = 30): { str: string; x: number; y: number; w: number } => ({ str, x, y, w })
+
+  it('文字碎片按坐标重建成行和单元格', () => {
+    const items = [
+      item('交易日期', 40, 700), item('交易摘要', 120, 700), item('金额', 220, 700),
+      item('2026-09-01', 40, 680), item('消费-餐馆', 120, 680), item('120.00', 220, 680),
+      item('第', 40, 20), item('1', 48, 20), item('页', 56, 20), // 页脚应被过滤
+    ]
+    const rows = groupPdfTextItems(items as never)
+    expect(rows.length).toBe(2)
+    expect(rows[0]).toEqual(['交易日期', '交易摘要', '金额'])
+    expect(rows[1]).toEqual(['2026-09-01', '消费-餐馆', '120.00'])
+  })
+
+  it('同一单元格内的连续碎片合并（间距小）', () => {
+    const items = [
+      item('交易日期', 40, 700), item('金额', 200, 700),
+      item('2026-09-01', 40, 680),
+      item('1,2', 200, 680, 10), item('34.56', 212, 680, 20), // 间距2pt → 同一格
+    ]
+    const rows = groupPdfTextItems(items as never)
+    expect(rows[1]).toEqual(['2026-09-01', '1,234.56'])
+  })
+
+  it('中信信用卡PDF模式：金额恒正、消费=支出、还款=入账、MM/DD日期补年份', () => {
+    const rows = [
+      ['中信银行信用卡账单'],
+      ['账单周期：2026-08-11 至 2026-09-10'],
+      ['交易日', '记账日', '交易摘要', '交易金额(人民币)'],
+      ['09/01', '09/03', '消费-商户甲', '150.00'],
+      ['09/05', '09/06', '消费-商户乙', '36.50'],
+      ['09/08', '09/09', '还款', '1000.00'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.platform).toBe('citic')
+    expect(bill.transactions.length).toBe(3)
+
+    const spend = bill.transactions.find((t) => t.item.includes('商户甲'))!
+    expect(spend.direction).toBe('out')
+    expect(spend.amount).toBe(150)
+    // 日期列取"记账日"（银行以记账日入账），年份来自账单周期
+    expect(spend.time.startsWith('2026-09-03')).toBe(true)
+
+    const repay = bill.transactions.find((t) => t.item.includes('还款'))!
+    expect(repay.direction).toBe('in')
+  })
+
+  it('PDF行重建的招行流水走通用解析', () => {
+    const rows = [
+      ['招商银行储蓄卡交易流水明细'],
+      ['交易日期', '交易金额', '借贷标志', '交易摘要'],
+      ['2025-08-01', '3000.00', '贷', '工资发放'],
+      ['2025-08-03', '-500.00', '借', '转账支出'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.platform).toBe('cmb')
+    expect(bill.transactions[0].direction).toBe('in')
+    expect(bill.transactions[1].direction).toBe('out')
+  })
+
+  it('parseBankDate 支持 MM/DD + 指定年份', () => {
+    expect(parseBankDate('09/01', 2026)).toBe('2026-09-01 00:00:00')
+    expect(parseBankDate('8月1日', 2025)).toBe('2025-08-01 00:00:00')
+    expect(parseBankDate('2026-09-01 10:30')).toBe('2026-09-01 10:30:00')
+    expect(parseBankDate('20260901')).toBe('2026-09-01 00:00:00')
+    expect(parseBankDate('垃圾')).toBeNull()
+  })
+
+  it('扫描件友好报错', () => {
+    expect(() => pdfRowsToBill([])).toThrow(/扫描件/)
   })
 })
 
