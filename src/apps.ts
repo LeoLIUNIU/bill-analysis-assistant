@@ -51,91 +51,91 @@ const ALIPAY: FinanceApp = {
   note: '余额宝、转账、还款都会被自动对冲',
 }
 
-/** 六大行 + 招商/中信/平安；银行账单解析开发中，先提供导出路径引导 */
+/** 六大行 + 招商/中信/平安；支持常见导出格式(CSV/Excel)，试运行，先提供导出路径引导 */
 const BANKS: FinanceApp[] = [
   {
     key: 'icbc', name: '工商银行', logoChar: '工', color: '#c7000b', color2: '#9d0009',
-    supported: false,
+    supported: true,
     steps: [
       '中国工商银行APP → 我的 → 账单',
-      '申请电子对账单，发送至邮箱',
+      '申请电子对账单，发送至邮箱（CSV/Excel 格式）',
       '网上银行也可导出交易明细',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'abc', name: '农业银行', logoChar: '农', color: '#009944', color2: '#007a36',
-    supported: false,
+    supported: true,
     steps: [
       '农业银行APP → 我的 → 账单查询',
       '储蓄卡交易明细可查询与导出',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'boc', name: '中国银行', logoChar: '中', color: '#d31119', color2: '#a30e14',
-    supported: false,
+    supported: true,
     steps: [
       '中国银行APP → 我的 → 账单',
       '申请电子对账单（邮箱接收）',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'ccb', name: '建设银行', logoChar: '建', color: '#0066b3', color2: '#00508c',
-    supported: false,
+    supported: true,
     steps: [
       '建设银行APP → 查询 → 明细查询',
       '储蓄卡交易明细支持导出',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'bocom', name: '交通银行', logoChar: '交', color: '#004b8d', color2: '#003a6e',
-    supported: false,
+    supported: true,
     steps: [
       '交通银行APP → 我的 → 账单',
       '订阅电子账单（邮箱接收）',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'psbc', name: '邮储银行', logoChar: '邮', color: '#007a33', color2: '#006128',
-    supported: false,
+    supported: true,
     steps: [
       '邮储银行APP → 我的 → 账户',
       '交易明细查询与导出',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'cmb', name: '招商银行', logoChar: '招', color: '#c8102e', color2: '#9c0c24',
-    supported: false,
+    supported: true,
     steps: [
       '招商银行APP → 我的 → 账单',
       '选择卡号与月份 → 申请电子账单发送至邮箱',
       '借记卡：我的 → 收支流水 可查询与邮件导出',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'citic', name: '中信银行', logoChar: '信', color: '#d31119', color2: '#a30e14',
-    supported: false,
+    supported: true,
     steps: [
       '中信银行APP / 动卡空间 → 账单',
       '申请电子账单（邮件/PDF）',
       '信用卡交易明细可在APP内查询',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
   {
     key: 'pab', name: '平安银行', logoChar: '安', color: '#f26f21', color2: '#d55e18',
-    supported: false,
+    supported: true,
     steps: [
       '平安口袋银行APP → 我的 → 账单',
       '电子账单设置（邮箱接收）',
     ],
-    note: '银行账单解析开发中',
+    note: '支持常见导出格式(CSV/Excel)，试运行',
   },
 ]
 

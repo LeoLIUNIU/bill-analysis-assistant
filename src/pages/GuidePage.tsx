@@ -16,12 +16,13 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
   const summary = useMemo(() => {
     const wechat = allTx.filter((t) => t.platform === 'wechat').length
     const alipay = allTx.filter((t) => t.platform === 'alipay').length
+    const bank = allTx.filter((t) => t.platform !== 'wechat' && t.platform !== 'alipay').length
     const ms = monthsOf(allTx)
     return {
       total: allTx.length,
       desc:
         ms.length > 0
-          ? `微信 ${wechat} 笔 · 支付宝 ${alipay} 笔 · 覆盖 ${ms[ms.length - 1]} ~ ${ms[0]}`
+          ? `微信 ${wechat} 笔 · 支付宝 ${alipay} 笔${bank > 0 ? ` · 银行 ${bank} 笔` : ''} · 覆盖 ${ms[ms.length - 1]} ~ ${ms[0]}`
           : '',
     }
   }, [allTx])
@@ -69,7 +70,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
-          微信 / 支付宝账单上传，银行账单导出路径引导（解析开发中）——
+          微信 / 支付宝账单上传解析，银行账单（六大行+招商/中信/平安）支持常见导出格式——
           转账自动对冲、分类深析、洞察报告、消费人格，一站式完成。
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

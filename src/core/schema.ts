@@ -1,6 +1,28 @@
-/** 统一流水模型：微信 / 支付宝账单解析后都归一到这里 */
+/** 统一流水模型：微信 / 支付宝 / 银行账单解析后都归一到这里 */
 
-export type Platform = 'wechat' | 'alipay'
+/** 支持的银行代码（六大行 + 招商/中信/平安），'bank' 为未识别银行的通用兜底 */
+export type BankCode = 'icbc' | 'abc' | 'boc' | 'ccb' | 'bocom' | 'psbc' | 'cmb' | 'citic' | 'pab' | 'bank'
+
+export type Platform = 'wechat' | 'alipay' | BankCode
+
+export const BANK_META: Record<BankCode, { name: string; color: string; color2: string }> = {
+  icbc: { name: '工商银行', color: '#c7000b', color2: '#9d0009' },
+  abc: { name: '农业银行', color: '#009944', color2: '#007a36' },
+  boc: { name: '中国银行', color: '#d31119', color2: '#a30e14' },
+  ccb: { name: '建设银行', color: '#0066b3', color2: '#00508c' },
+  bocom: { name: '交通银行', color: '#004b8d', color2: '#003a6e' },
+  psbc: { name: '邮储银行', color: '#007a33', color2: '#006128' },
+  cmb: { name: '招商银行', color: '#c8102e', color2: '#9c0c24' },
+  citic: { name: '中信银行', color: '#d31119', color2: '#a30e14' },
+  pab: { name: '平安银行', color: '#f26f21', color2: '#d55e18' },
+  bank: { name: '银行账户', color: '#475569', color2: '#334155' },
+}
+
+export function platformName(p: Platform): string {
+  if (p === 'wechat') return '微信'
+  if (p === 'alipay') return '支付宝'
+  return BANK_META[p]?.name ?? p
+}
 
 /** 收支方向。neutral = 平台内资金腾挪（零钱充值/提现、余额宝等），不计收支 */
 export type Direction = 'in' | 'out' | 'neutral'

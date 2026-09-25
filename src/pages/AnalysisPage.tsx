@@ -23,7 +23,7 @@ import {
 import { downloadReport, type ReportData } from '../core/report'
 import { computePersona } from '../core/persona'
 import { countsAsFlow, needsReview } from '../core/transfer'
-import type { MonthlyAggregate, Transaction } from '../core/schema'
+import { BANK_META, platformName, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
 import { Chart, donutOption, sankeyOption, trendOption, type SankeyDatum } from '../components/charts'
 import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney } from '../components/ui'
@@ -785,7 +785,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
     const flagLabel: Record<string, string> = { internal: '内部转账', repayment: '信用还款', refund: '退款' }
     const lines = filtered.map((t) => [
       t.time,
-      t.platform === 'wechat' ? '微信' : '支付宝',
+      platformName(t.platform),
       t.counterparty, t.item, t.category,
       t.direction === 'in' ? '收入' : t.direction === 'out' ? '支出' : '中性',
       String(t.amount), t.payMethod, t.status,
@@ -862,6 +862,9 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
             <option value="">全部平台</option>
             <option value="wechat">微信</option>
             <option value="alipay">支付宝</option>
+            {Object.entries(BANK_META).map(([code, m]) => (
+              <option key={code} value={code}>{m.name}</option>
+            ))}
           </select>
           <select className={selectCls} value={filter.direction} onChange={(e) => setFilter({ ...filter, direction: e.target.value })}>
             <option value="">收+支</option>
@@ -1007,7 +1010,10 @@ function StatCard({ emoji, label, value, diff, signed = false, color }: {
 function buildSankey(txs: Transaction[]): SankeyDatum {
   const nodeSet = new Map<string, { name: string; itemStyle?: { color: string } }>()
   const links = new Map<string, number>()
-  const walletOf = (platform: string) => (platform === 'wechat' ? '微信钱包' : '支付宝')
+  const walletOf = (platform: string) =>
+    platform === 'wechat' ? '微信钱包'
+    : platform === 'alipay' ? '支付宝'
+    : platformName(platform as Platform) + '账户'
 
   for (const tx of txs) {
     const wallet = walletOf(tx.platform)

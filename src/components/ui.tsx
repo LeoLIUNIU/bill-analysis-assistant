@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { categoryDef } from '../core/categories'
+import { BANK_META, platformName, type BankCode, type Platform } from '../core/schema'
 import type { Transaction } from '../core/schema'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -22,17 +23,19 @@ export function SectionTitle({ emoji, title, desc }: { emoji: string; title: str
   )
 }
 
+const PLATFORM_COLORS: Partial<Record<Platform, string>> = {
+  wechat: '#07c160',
+  alipay: '#1677ff',
+}
+
 export function PlatformBadge({ platform }: { platform: string }) {
-  const isWechat = platform === 'wechat'
+  const color = PLATFORM_COLORS[platform as Platform] ?? BANK_META[platform as BankCode]?.color ?? '#64748b'
   return (
     <span
       className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium"
-      style={{
-        color: isWechat ? '#07c160' : '#1677ff',
-        backgroundColor: isWechat ? '#07c16014' : '#1677ff14',
-      }}
+      style={{ color, backgroundColor: `${color}14` }}
     >
-      {isWechat ? '微信' : '支付宝'}
+      {platformName(platform as Platform)}
     </span>
   )
 }

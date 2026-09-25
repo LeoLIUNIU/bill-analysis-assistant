@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { ALIPAY_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
+import { ALIPAY_SAMPLE_CSV, CMB_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
 import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/core/parsers/detect'
 import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
@@ -11,7 +11,7 @@ import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
 import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses } from '../src/core/analysis'
 import { buildReportHTML } from '../src/core/report'
-import { countsAsFlow } from '../src/core/transfer'
+import { countsAsFlow, needsReview } from '../src/core/transfer'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -379,6 +379,95 @@ describe('深度分析引擎', () => {
     expect(html).toContain('洞察')
     expect(html).toContain('分类明细')
     expect(html).not.toContain('undefined')
+  })
+})
+
+describe('银行账单解析', () => {
+  it('识别招商银行账单并解析（借贷标志 + 负数金额）', () => {
+    expect(detectPlatform(CMB_SAMPLE_CSV)).toBe('cmb')
+    const bill = parseBillText(CMB_SAMPLE_CSV)
+    expect(bill.platform).toBe('cmb')
+    expect(bill.transactions.length).toBe(8)
+
+    const salary = bill.transactions.find((t) => t.item.includes('工资发放'))!
+    expect(salary.direction).toBe('in') // 贷=收入
+    expect(salary.amount).toBe(3000)
+    expect(salary.month).toBe('2025-08')
+
+    const transfer = bill.transactions.find((t) => t.item.includes('转账支出'))!
+    expect(transfer.direction).toBe('out') // 借=支出，负数取绝对值
+    expect(transfer.amount).toBe(500)
+
+    const balance = bill.transactions.find((t) => t.item.includes('生活缴费'))!
+    expect(balance.payMethod).toContain('9901')
+  })
+
+  it('银行账单进入完整管线并正确分类', () => {
+    const bill = parseBillText(CMB_SAMPLE_CSV)
+    const processed = processPipeline(bill.transactions, {})
+    const salary = processed.find((t) => t.item.includes('工资发放'))!
+    expect(salary.category).toBe('工资薪水')
+    const gas = processed.find((t) => t.item.includes('生活缴费'))!
+    expect(gas.category).toBe('住房水电')
+    // 信用卡还款：强关键词自动标记 repayment，不进纠错队列
+    const cardRepay = processed.find((t) => t.item.includes('信用卡还款'))!
+    expect(cardRepay.transferFlag).toBe('repayment')
+    expect(cardRepay.confidence).toBeGreaterThanOrEqual(0.8)
+    expect(needsReview(cardRepay)).toBe(false)
+  })
+
+  it('多日期格式归一（斜杠/年月日/无分隔）', async () => {
+    const slash = `招商银行交易流水\n交易日期,交易金额,借贷标志,交易摘要\n2025/08/02,-100.00,借,消费A\n2025年08月03日,-50.00,借,消费B\n20250804,-30.00,借,消费C\n`
+    const bill = parseBillText(slash)
+    expect(bill.platform).toBe('cmb')
+    const [a, b, c] = bill.transactions
+    expect(a.time.startsWith('2025-08-02')).toBe(true)
+    expect(b.time.startsWith('2025-08-03')).toBe(true)
+    expect(c.time.startsWith('2025-08-04')).toBe(true)
+  })
+
+  it('银行 xlsx 账单可解析', async () => {
+    const parsed = Papa.parse<string[]>(CMB_SAMPLE_CSV.trim(), { skipEmptyLines: false })
+    const ws = XLSX.utils.aoa_to_sheet(parsed.data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '流水')
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+    const bill = await parseBillXlsx(buf)
+    expect(bill.platform).toBe('cmb')
+    expect(bill.transactions.length).toBe(8)
+  })
+
+  it('无银行标识的通用格式兜底解析（platform=bank）', () => {
+    const generic = `账户明细导出\n记账日期,收支金额,摘要,账户余额\n2025-08-01,2000.00,奖金,8000.00\n2025-08-02,-150.00,日用,7850.00\n2025-08-03,-45.00,日用,7805.00\n`
+    const bill = parseBillText(generic)
+    expect(bill.platform).toBe('bank')
+    expect(bill.transactions.length).toBe(3)
+    const bonus = bill.transactions.find((t) => t.item.includes('奖金'))!
+    expect(bonus.direction).toBe('in')
+    const daily = bill.transactions.find((t) => t.item.includes('日用') && t.amount === 150)!
+    expect(daily.direction).toBe('out')
+  })
+
+  it('收入金额/支出金额双列格式', () => {
+    const dual = `中国银行交易流水明细清单\n交易日期,转入金额,转出金额,交易摘要,账户余额\n2025-08-01,1200.00,,退款,5200.00\n2025-08-02,,89.00,消费,5111.00\n`
+    const bill = parseBillText(dual)
+    expect(bill.platform).toBe('boc')
+    expect(bill.transactions.length).toBe(2)
+    const refund = bill.transactions[0]
+    expect(refund.direction).toBe('in')
+    expect(refund.amount).toBe(1200)
+    const spend = bill.transactions[1]
+    expect(spend.direction).toBe('out')
+    expect(spend.amount).toBe(89)
+  })
+
+  it('银行转账同样进对冲引擎（个人转账软候选进纠错）', () => {
+    const bill = parseBillText(CMB_SAMPLE_CSV)
+    const processed = processPipeline(bill.transactions, {})
+    // 转账支出(给个人)：WALLET_OPS 无命中、无还款词 → 正常支出；这里验证管线对银行流水完整执行
+    const transfer = processed.find((t) => t.item.includes('转账支出'))!
+    expect(transfer.direction).toBe('out')
+    expect(countsAsFlow(transfer)).toBe(true)
   })
 })
 

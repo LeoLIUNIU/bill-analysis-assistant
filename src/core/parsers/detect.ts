@@ -22,6 +22,21 @@ export function detectPlatform(text: string): Platform | null {
   const head = text.slice(0, 4000)
   if (head.includes('微信支付账单明细') || head.includes('微信支付交易明细')) return 'wechat'
   if (head.includes('支付宝')) return 'alipay'
+  // 银行：文件头部通常带银行全称（注意"中国工商银行"不含"中国银行"连续子串，顺序安全）
+  const banks: Array<[RegExp, Platform]> = [
+    [/工商银行/, 'icbc'],
+    [/农业银行/, 'abc'],
+    [/中国银行/, 'boc'],
+    [/建设银行/, 'ccb'],
+    [/交通银行/, 'bocom'],
+    [/邮(政)?储(蓄)?银行/, 'psbc'],
+    [/招商银行/, 'cmb'],
+    [/中信银行/, 'citic'],
+    [/平安银行/, 'pab'],
+  ]
+  for (const [re, code] of banks) {
+    if (re.test(head)) return code
+  }
   // 兜底：按表头特征判断
   if (head.includes('交易类型') && head.includes('当前状态')) return 'wechat'
   if (head.includes('交易分类') || head.includes('商品说明')) return 'alipay'
