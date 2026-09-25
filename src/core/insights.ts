@@ -37,7 +37,7 @@ export function generateInsights(
       out.push({
         id: 'savings', kind: 'good', icon: '🐿️',
         title: `结余率 ${pct(rate)}，存钱小能手`,
-        detail: `收入 ¥${fmt(income)} − 支出 ¥${fmt(expense)} = ¥${fmt(income - expense)} 进了小金库，超过了不少同龄松鼠。`,
+        detail: `收入 ¥${fmt(income)} − 支出 ¥${fmt(expense)} = ¥${fmt(income - expense)} 进了小金库，超过了大多数同龄人。`,
       })
     } else if (rate >= 0.1) {
       out.push({

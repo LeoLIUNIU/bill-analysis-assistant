@@ -5,7 +5,7 @@ import { navigate } from '../hooks/useHashRoute'
 import { monthsOf } from '../core/month'
 import { Card } from '../components/ui'
 
-export function ImportPage({ hasData }: { hasData: boolean }) {
+export function GuidePage({ hasData }: { hasData: boolean }) {
   const importFiles = useStore((s) => s.importFiles)
   const loadDemo = useStore((s) => s.loadDemo)
   const clearDemo = useStore((s) => s.clearDemo)
@@ -48,7 +48,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
   const analyze = () => {
     const latest = monthsOf(useStore.getState().transactions)[0]
     if (latest) useStore.getState().setSelectedMonth(latest)
-    navigate('report')
+    navigate('analysis')
   }
 
   const scrollToStep1 = () => {
@@ -64,24 +64,23 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
     <div className="mx-auto max-w-4xl">
       {/* ---------- Hero ---------- */}
       <section className="pb-10 pt-10 text-center sm:pt-14">
-        <div className="mx-auto mb-5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-soft ring-1 ring-stone-200">
-          🐿️ 松鼠助手 · 账单分析工具
+        <div className="mx-auto mb-5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-soft ring-1 ring-slate-200">
+          🔒 纯本地分析 · 数据永不上传
         </div>
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-ink sm:text-5xl">
-          看清你的钱，
-          <br className="sm:hidden" />
-          <span className="bg-gradient-to-r from-squirrel-500 to-rose-500 bg-clip-text text-transparent">
-            都去哪儿了
+          上传账单，
+          <span className="bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent">
+            看清每一笔钱
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
-          选你在用的金融APP，导出账单拖进来——
-          转账自动对冲、消费结构、消费人格，三分钟看清收支全貌。
+          微信 / 支付宝账单上传，银行账单导出路径引导（解析开发中）——
+          转账自动对冲、分类深析、洞察报告、消费人格，一站式完成。
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <button
-            onClick={() => { loadDemo(); navigate('report') }}
-            className="rounded-xl bg-squirrel-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-squirrel-500/25 transition-all hover:-translate-y-0.5 hover:bg-squirrel-600"
+            onClick={() => { loadDemo(); navigate('analysis') }}
+            className="rounded-xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:bg-brand-600"
           >
             🎮 一键体验（演示数据）
           </button>
@@ -133,14 +132,14 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
                 onClick={() => toggleApp(app.key)}
                 className={`group relative flex flex-col items-center gap-2 rounded-2xl p-3 pb-2.5 transition-all ${
                   on
-                    ? 'bg-squirrel-50 ring-2 ring-squirrel-500'
+                    ? 'bg-brand-50 ring-2 ring-brand-500'
                     : guideKey === app.key
                       ? 'bg-white ring-2 ring-stone-300'
                       : 'bg-white ring-1 ring-stone-200 hover:-translate-y-0.5 hover:shadow-md'
                 }`}
               >
                 {on && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-squirrel-500 text-[11px] font-bold text-white shadow">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white shadow">
                     ✓
                   </span>
                 )}
@@ -207,7 +206,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
         <Card className="overflow-hidden">
           <div
             className={`flex flex-col items-center justify-center border-2 border-dashed p-10 transition-colors ${
-              dragging ? 'border-squirrel-400 bg-squirrel-50' : 'border-stone-300 bg-white'
+              dragging ? 'border-brand-400 bg-brand-50' : 'border-stone-300 bg-white'
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
@@ -267,7 +266,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
         )}
         {/* 数据概览 + 一键分析 */}
         {hasData && (
-          <Card className="mt-3 overflow-hidden ring-2 ring-squirrel-200">
+          <Card className="mt-3 overflow-hidden ring-2 ring-brand-200">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
               <div className="min-w-0">
                 <div className="text-sm font-bold text-ink">📊 已就绪 {summary.total} 笔账单</div>
@@ -277,7 +276,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
               </div>
               <button
                 onClick={analyze}
-                className="ml-auto rounded-xl bg-squirrel-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-squirrel-500/25 transition-all hover:-translate-y-0.5 hover:bg-squirrel-600"
+                className="ml-auto rounded-xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:bg-brand-600"
               >
                 🚀 一键分析 →
               </button>
@@ -305,7 +304,7 @@ export function ImportPage({ hasData }: { hasData: boolean }) {
         </div>
         <p className="mt-6 text-center text-xs leading-relaxed text-ink-soft">
           🔒 全程在浏览器本地完成，没有任何网络请求携带你的账单数据 ·
-          <button className="ml-1 text-squirrel-600 hover:underline" onClick={() => navigate('privacy')}>查看隐私承诺</button>
+          <button className="ml-1 text-brand-600 hover:underline" onClick={() => navigate('privacy')}>查看隐私承诺</button>
         </p>
       </section>
     </div>

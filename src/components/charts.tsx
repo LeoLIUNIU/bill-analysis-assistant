@@ -94,8 +94,8 @@ export function trendOption(
     xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } }, axisLabel: { formatter: (v: number) => (v >= 10000 ? `${v / 10000}w` : String(v)) } },
     series: [
-      { name: '支出', type: 'bar', data: expense, itemStyle: { color: '#fb923c', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
-      { name: '收入', type: 'bar', data: income, itemStyle: { color: '#86efac', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
+      { name: '支出', type: 'bar', data: expense, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
+      { name: '收入', type: 'bar', data: income, itemStyle: { color: '#a7f3d0', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
     ],
   }
 }

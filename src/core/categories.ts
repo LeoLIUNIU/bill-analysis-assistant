@@ -95,10 +95,18 @@ function matches(text: string, keywords: string[]): boolean {
 
 /**
  * 自动分类。
- * 优先级：支付宝自带交易分类（映射表）> 关键词规则 > 兜底。
+ * 优先级：住房水电等强特征关键词（电费/水费/房租…）> 支付宝自带交易分类（映射表）> 关键词规则 > 兜底。
+ * 强特征优先：平台自带的"生活服务"太宽泛，会把电费水费这类刚性支出归错类。
  */
+const HOUSING_STRONG = ['电费', '水费', '燃气', '房租', '物业费', '供暖', '热力']
+
 export function autoCategorize(tx: Transaction): string {
   const haystack = `${tx.type} ${tx.counterparty} ${tx.item} ${tx.payMethod}`
+  const itemText = `${tx.counterparty} ${tx.item}`
+
+  if (tx.direction !== 'in' && HOUSING_STRONG.some((k) => itemText.includes(k))) {
+    return '住房水电'
+  }
 
   if (tx.platform === 'alipay' && tx.type && ALIPAY_CATEGORY_ALIAS[tx.type]) {
     return ALIPAY_CATEGORY_ALIAS[tx.type]

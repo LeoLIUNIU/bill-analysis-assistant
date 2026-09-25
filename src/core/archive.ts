@@ -21,7 +21,7 @@ export function serializeArchive(archive: Archive): string {
 export function parseArchive(text: string): Archive {
   const raw = JSON.parse(text) as Archive
   if (raw?.app !== 'songshu-assistant' || raw?.version !== 1 || typeof raw.months !== 'object') {
-    throw new Error('这不是有效的松鼠助手存档文件')
+    throw new Error('这不是有效的账单分析助手存档文件')
   }
   return raw
 }

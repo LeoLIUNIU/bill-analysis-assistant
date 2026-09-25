@@ -9,6 +9,8 @@ import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '..
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
+import { categoryDetails, incomeBreakdown, payMethodBreakdown, recurringExpenses } from '../src/core/analysis'
+import { buildReportHTML } from '../src/core/report'
 import { countsAsFlow } from '../src/core/transfer'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -264,6 +266,82 @@ describe('洞察引擎', () => {
     const rows = categoryRows(agg, prev)
     expect(rows.find((r) => r.name === '餐饮美食')!.diffPct).toBeGreaterThan(1)
     expect(rows.find((r) => r.name === '住房水电')!.previous).toBeUndefined()
+  })
+})
+
+describe('深度分析引擎', () => {
+  const merged = [
+    ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+    ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+  ]
+  const processed = processPipeline(merged, {})
+  const monthTx = processed.filter((t) => t.month === '2025-08')
+  const agg = aggregateMonth('2025-08', processed)
+
+  it('分类深析：金额/笔数/商户/占比正确', () => {
+    const details = categoryDetails(monthTx, agg.expense)
+    expect(details.length).toBeGreaterThan(3)
+    expect(details[0].name).toBe('住房水电')
+    expect(details[0].total).toBe(3656.8) // 房租3500 + 电费156.8
+    const dining = details.find((d) => d.name === '餐饮美食')!
+    expect(dining.count).toBe(4)
+    expect(dining.topMerchants.length).toBeGreaterThan(0)
+    expect(dining.share).toBeGreaterThan(0)
+    expect(dining.avg).toBeGreaterThan(0)
+  })
+
+  it('分类深析：环比与解读', () => {
+    const prev = { ...agg, byCategory: { 餐饮美食: 50 } }
+    const details = categoryDetails(monthTx, agg.expense, prev)
+    const dining = details.find((d) => d.name === '餐饮美食')!
+    expect(dining.momPct).toBeGreaterThan(1)
+    expect(dining.insight).toContain('多花')
+  })
+
+  it('支付方式分析：金额守恒', () => {
+    const pays = payMethodBreakdown(monthTx)
+    const total = pays.reduce((s, p) => s + p.total, 0)
+    expect(Math.round(total * 100)).toBe(Math.round(agg.expense * 100))
+  })
+
+  it('收入构成：总额守恒', () => {
+    const inc = incomeBreakdown(monthTx)
+    const total = inc.reduce((s, p) => s + p.total, 0)
+    expect(Math.round(total * 100)).toBe(Math.round(agg.income * 100))
+  })
+
+  it('固定支出：跨月同额收款方被识别，单月数据为空', () => {
+    expect(recurringExpenses(monthTx)).toEqual([]) // 演示数据只有一个月份
+    // 构造两月房租数据
+    const rent = (month: string): typeof processed => [
+      { ...processed[0], id: 'r1' + month, month, time: `${month}-01 10:00:00`, direction: 'out', amount: 3000, counterparty: '房东', category: '住房水电', transferFlag: null, flagSource: null, confidence: 1 },
+      { ...processed[0], id: 'r2' + month, month, time: `${month}-02 10:00:00`, direction: 'out', amount: 3000, counterparty: '房东', category: '住房水电', transferFlag: null, flagSource: null, confidence: 1 },
+    ]
+    const rec = recurringExpenses([...rent('2025-07'), ...rent('2025-08')])
+    expect(rec.length).toBe(1)
+    expect(rec[0].counterparty).toBe('房东')
+    expect(rec[0].months.length).toBe(2)
+  })
+
+  it('分析报告HTML生成：自包含且包含关键区块', () => {
+    const insights = generateInsights(monthTx, agg)
+    const details = categoryDetails(monthTx, agg.expense)
+    const html = buildReportHTML({
+      label: '2025-08',
+      generatedAt: '2025-09-01 12:00:00',
+      agg,
+      insights,
+      categories: details,
+      payMethods: payMethodBreakdown(monthTx),
+      recurring: [],
+      persona: computePersona(monthTx),
+      txnCount: agg.txnCount,
+    })
+    expect(html).toContain('账单分析助手')
+    expect(html).toContain('收支分析报告')
+    expect(html).toContain('洞察')
+    expect(html).toContain('分类明细')
+    expect(html).not.toContain('undefined')
   })
 })
 

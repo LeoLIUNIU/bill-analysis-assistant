@@ -132,7 +132,7 @@ export const useStore = create<SongshuState>()(
         }
         const archive = buildArchive(months, corrections)
         const stamp = new Date().toISOString().slice(0, 10)
-        downloadTextFile(`松鼠助手存档_${stamp}.json`, serializeArchive(archive))
+        downloadTextFile(`账单分析助手存档_${stamp}.json`, serializeArchive(archive))
       },
 
       clearAll: () => {

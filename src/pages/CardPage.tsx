@@ -33,7 +33,7 @@ export function CardPage({ hasData }: { hasData: boolean }) {
       const canvas = await html2canvas(cardRef.current, { scale: 2, backgroundColor: null })
       const a = document.createElement('a')
       a.href = canvas.toDataURL('image/png')
-      a.download = `松鼠助手_消费人格_${selectedMonth || '全部'}.png`
+      a.download = `账单分析助手_消费人格_${selectedMonth || '全部'}.png`
       a.click()
     } finally {
       setBusy(false)
@@ -58,7 +58,7 @@ export function CardPage({ hasData }: { hasData: boolean }) {
             title="数据还不够画出你的动物人格"
             desc="至少需要 8 笔支出。多导入一些账单，或切到「全部」月份再来看看。"
             action={
-              <button onClick={() => navigate('import')} className="rounded-lg bg-squirrel-500 px-4 py-2 text-sm font-medium text-white hover:bg-squirrel-600">
+              <button onClick={() => navigate('guide')} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">
                 去导入账单
               </button>
             }
@@ -77,7 +77,7 @@ export function CardPage({ hasData }: { hasData: boolean }) {
             <button
               onClick={() => void download()}
               disabled={busy}
-              className="rounded-xl bg-squirrel-500 px-4 py-2.5 font-semibold text-white shadow-lg shadow-squirrel-500/25 transition-all hover:-translate-y-px hover:bg-squirrel-600 disabled:opacity-60"
+              className="rounded-xl bg-brand-500 px-4 py-2.5 font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-px hover:bg-brand-600 disabled:opacity-60"
             >
               {busy ? '生成中…' : '🖼️ 保存卡片 PNG'}
             </button>
@@ -87,7 +87,7 @@ export function CardPage({ hasData }: { hasData: boolean }) {
           <div ref={cardRef} style={{ ...cardStyle, background: cardBg(persona) }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 600, letterSpacing: 1 }}>
-                松鼠助手 · 消费人格报告
+                账单分析助手 · 消费人格报告
               </span>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>{selectedMonth || '全部月份'}</span>
             </div>
@@ -129,7 +129,7 @@ export function CardPage({ hasData }: { hasData: boolean }) {
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 12 }}>
-              🐿️ 松鼠助手 · 账单只在本地浏览器解析，放心分享
+              账单分析助手 · 账单只在本地浏览器解析，放心分享
             </div>
           </div>
 
@@ -216,7 +216,7 @@ const cardStyle: React.CSSProperties = {
 
 function cardBg(p: PersonaResult): string {
   const gradients: Record<string, string> = {
-    squirrel: 'linear-gradient(135deg,#fbbf24,#f97316)',
+    brand: 'linear-gradient(135deg,#fbbf24,#f97316)',
     hamster: 'linear-gradient(135deg,#facc15,#d97706)',
     butterfly: 'linear-gradient(135deg,#e879f9,#8b5cf6)',
     owl: 'linear-gradient(135deg,#818cf8,#475569)',
@@ -225,7 +225,7 @@ function cardBg(p: PersonaResult): string {
     hedgehog: 'linear-gradient(135deg,#fb923c,#f43f5e)',
     migratory: 'linear-gradient(135deg,#38bdf8,#0891b2)',
   }
-  return gradients[p.primary.key] ?? gradients.squirrel
+  return gradients[p.primary.key] ?? gradients.brand
 }
 
 function NoData() {
@@ -233,9 +233,9 @@ function NoData() {
     <EmptyState
       emoji="🐾"
       title="还没有账单数据"
-      desc="导入账单后，松鼠会根据你的真实消费给你领一只专属动物。"
+      desc="导入账单后，我们会根据你的真实消费，为你匹配一只专属动物。"
       action={
-        <button onClick={() => navigate('import')} className="rounded-lg bg-squirrel-500 px-4 py-2 text-sm font-medium text-white hover:bg-squirrel-600">
+        <button onClick={() => navigate('guide')} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600">
           去导入账单
         </button>
       }

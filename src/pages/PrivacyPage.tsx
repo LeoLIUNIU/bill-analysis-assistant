@@ -53,7 +53,7 @@ export function PrivacyPage() {
               当前浏览器里存有 <b className="text-ink">{transactions.length}</b> 笔流水（仅本地）。
             </p>
             <p>
-              · <b className="text-ink">导出存档</b>：在「报表」页点「⬇️ 导出存档」，得到 JSON 文件自己保管。<br />
+              · <b className="text-ink">导出存档</b>：在「账单分析」页点「💾 存档」，得到 JSON 文件自己保管。<br />
               · <b className="text-ink">彻底删除</b>：点下方按钮立即清空本浏览器全部数据，无需联系我们，也无法被我们找回。
             </p>
             <button
@@ -66,9 +66,24 @@ export function PrivacyPage() {
         </Card>
 
         <Card className="p-6">
+          <h2 className="text-base font-bold text-ink">🌐 关于本站部署（GitHub Pages）</h2>
+          <div className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-soft">
+            <p>
+              本站部署在 GitHub Pages 上，是一个<b className="text-ink">纯静态网站</b>：没有后端服务器，没有数据库，没有账号系统。
+            </p>
+            <p>
+              · <b className="text-ink">你的账单绝对安全</b>：解析与分析全部在你的浏览器内存中完成，账单数据从头到尾没有、也不可能被发送到 GitHub 或任何第三方。你可以在浏览器开发者工具的 Network 面板验证。<br />
+              · <b className="text-ink">网站地址是公开的</b>：任何知道网址的人都能打开这个工具网站本身（就像任何人都能打开一个在线计算器），但他们看到的只是空白的工具，<b className="text-ink">无法看到任何人的账单数据</b>。<br />
+              · 分析结果只存在你自己浏览器的 localStorage 里，换设备不会跟随；可通过「存档」功能导出 JSON 自主保管。<br />
+              · 全站强制 HTTPS，无 Cookie、无埋点、无第三方统计脚本。
+            </p>
+          </div>
+        </Card>
+
+        <Card className="p-6">
           <h2 className="text-base font-bold text-ink">📄 使用条款（简版）</h2>
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-            松鼠助手是个人账单分析工具，分析结果仅供个人记账参考，不构成任何财务或投资建议。
+            账单分析助手是纯本地运行的个人账单分析工具，分析结果仅供个人记账参考，不构成任何财务或投资建议。
             账单数据来源于你本人导出的文件；分享报告卡片前请自行确认是否包含敏感信息（卡片提供金额隐藏版）。
           </p>
         </Card>
