@@ -59,7 +59,8 @@ function pad(v: string): string {
 }
 
 function parseNum(raw: string): number {
-  const cleaned = raw.replace(/[¥￥,""\s元人民币]/g, '')
+  // 银行账单金额可能带币种前缀（"RMB 8.00"）或货币符号，一并剔除字母与符号
+  const cleaned = raw.replace(/[A-Za-z¥￥,""\s元人民币]/g, '')
   if (!cleaned) return NaN
   return Number.parseFloat(cleaned)
 }

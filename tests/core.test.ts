@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx'
 import { ALIPAY_SAMPLE_CSV, CMB_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
 import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/core/parsers/detect'
 import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
-import { groupPdfTextItems, pdfRowsToBill } from '../src/core/parsers/pdf'
+import { groupPdfTextItems, pdfPositionedRowsToBill, pdfRowsToBill } from '../src/core/parsers/pdf'
 import { parseBankDate } from '../src/core/parsers/bank'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
@@ -543,7 +543,73 @@ describe('PDF 账单解析', () => {
   })
 
   it('扫描件友好报错', () => {
-    expect(() => pdfRowsToBill([])).toThrow(/扫描件/)
+    // 空行数组 = 没有任何可识别的交易表
+    expect(() => pdfRowsToBill([])).toThrow(/未找到含日期与金额/)
+    expect(() => pdfRowsToBill([['随机文本'], ['没有表头']])).toThrow(/交易表/)
+  })
+
+  it('坐标对齐：收入/支出双列空列不串位（真实中信账单结构复刻）', () => {
+    // 复刻真实账单坐标：收入金额列空，支出金额列有值——按数组顺序会错位成收入
+    const rows = [
+      [{ text: '账户交易明细', x: 253, w: 90 }],
+      [
+        { text: '交易日期', x: 22, w: 36 }, { text: '收入金额', x: 98, w: 36 },
+        { text: '支出金额', x: 165, w: 36 }, { text: '账户余额', x: 233, w: 36 },
+        { text: '交易摘要', x: 305, w: 36 }, { text: '对方账号', x: 407, w: 36 },
+        { text: '对方户名', x: 508, w: 36 },
+      ],
+      [
+        { text: '20260825', x: 24, w: 36 }, { text: 'RMB 8.00', x: 165, w: 36 },
+        { text: 'RMB 22316.63', x: 215, w: 54 }, { text: '财付通快捷支付', x: 291, w: 63 },
+        { text: '801276280', x: 406, w: 41 }, { text: '拉加代尔商业运营管理(山东)有限公司', x: 475, w: 102 },
+      ],
+    ]
+    const bill = pdfPositionedRowsToBill(rows)
+    expect(bill.platform).toBe('bank') // 真实账单正文无银行名，走通用银行
+    expect(bill.transactions.length).toBe(1)
+    const tx = bill.transactions[0]
+    expect(tx.direction).toBe('out') // 必须是支出——错位的话会变成收入
+    expect(tx.amount).toBe(8)
+    expect(tx.time).toBe('2026-08-25 00:00:00')
+    expect(tx.counterparty).toBe('拉加代尔商业运营管理(山东)有限公司')
+  })
+
+  it('真实中信账单PDF端到端（本地fixture，不入库）', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const fixture = path.resolve(__dirname, 'fixtures/citic_real.pdf')
+    if (!fs.existsSync(fixture)) {
+      console.warn('跳过：本地无 citic_real.pdf（含个人隐私，不入库）')
+      return
+    }
+    // node 环境用 legacy 构建（无 worker）
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    const data = new Uint8Array(fs.readFileSync(fixture))
+    const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise
+    const posRows: Array<Array<{ text: string; x: number; w: number }>> = []
+    for (let p = 1; p <= Math.min(doc.numPages, 50); p++) {
+      const page = await doc.getPage(p)
+      const content = await page.getTextContent()
+      const items = []
+      for (const item of content.items) {
+        if (!('str' in item)) continue
+        items.push({ str: item.str, x: item.transform[4], y: item.transform[5], w: item.width ?? 0 })
+      }
+      const { groupPdfPositionedRows } = await import('../src/core/parsers/pdf')
+      posRows.push(...groupPdfPositionedRows(items))
+      page.cleanup()
+    }
+    const bill = pdfPositionedRowsToBill(posRows)
+    expect(bill.transactions.length).toBeGreaterThan(10)
+    // 首笔：2026-08-25 支出 8.00 财付通快捷支付
+    const first = bill.transactions.find((t) => t.amount === 8)!
+    expect(first.direction).toBe('out')
+    expect(first.counterparty).toBe('拉加代尔商业运营管理(山东)有限公司')
+    // 所有交易方向/金额都应有效
+    for (const t of bill.transactions) {
+      expect(['in', 'out']).toContain(t.direction)
+      expect(t.amount).toBeGreaterThan(0)
+    }
   })
 })
 
