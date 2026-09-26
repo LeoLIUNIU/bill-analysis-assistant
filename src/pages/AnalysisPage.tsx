@@ -27,7 +27,7 @@ import { countsAsFlow, needsReview } from '../core/transfer'
 import { BANK_META, platformName, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
 import { Chart, donutOption, sankeyOption, trendOption, type DonutDetail, type SankeyDatum } from '../components/charts'
-import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney } from '../components/ui'
+import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney, fmtTxTime } from '../components/ui'
 
 type Tab = 'overview' | 'spending' | 'transactions'
 
@@ -850,7 +850,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
               <div key={tx.id} className="rounded-xl bg-slate-50 p-4 transition-colors hover:bg-amber-50/60">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <PlatformBadge platform={tx.platform} />
-                  <span className="text-xs text-ink-soft">{tx.time.slice(5, 16)}</span>
+                  <span className="text-xs text-ink-soft">{fmtTxTime(tx)}</span>
                   <span className="min-w-0 flex-1 truncate font-medium text-ink">
                     {tx.counterparty || tx.item || '未知商户'}
                     <span className="ml-1.5 text-xs font-normal text-ink-soft">{tx.item}</span>
@@ -953,7 +953,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
             <tbody>
               {filtered.slice(0, limit).map((tx) => (
                 <tr key={tx.id} className={`border-b border-slate-100 transition-colors hover:bg-slate-50 ${countsAsFlow(tx) ? '' : 'opacity-45'}`}>
-                  <td className="whitespace-nowrap py-2 pr-2 text-xs text-ink-soft">{tx.time.slice(5, 16)}</td>
+                  <td className="whitespace-nowrap py-2 pr-2 text-xs text-ink-soft">{fmtTxTime(tx)}</td>
                   <td className="py-2 pr-2"><PlatformBadge platform={tx.platform} /></td>
                   <td className="max-w-56 py-2 pr-2">
                     <div className="truncate font-medium text-ink" title={tx.item}>{tx.counterparty || tx.item}</div>
@@ -1049,7 +1049,7 @@ function buildSankey(txs: Transaction[]): SankeyDatum {
   const walletOf = (platform: string) =>
     platform === 'wechat' ? '微信钱包'
     : platform === 'alipay' ? '支付宝'
-    : platformName(platform as Platform) + '账户'
+    : platformName(platform as Platform)
 
   for (const tx of txs) {
     // 已对冲的银行渠道行不进流向图（App侧同行已代表该笔消费）

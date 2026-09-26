@@ -1,5 +1,6 @@
 import type { MonthlyAggregate, Transaction } from './schema'
 import { countsAsFlow } from './transfer'
+import { hasRealTime } from './schema'
 
 /** 由明细聚合单月数据（存档与环比的最小单元，不含任何明细） */
 export function aggregateMonth(month: string, txs: Transaction[]): MonthlyAggregate {
@@ -26,7 +27,7 @@ export function aggregateMonth(month: string, txs: Transaction[]): MonthlyAggreg
       agg.expense += tx.amount
       agg.byCategory[tx.category] = (agg.byCategory[tx.category] ?? 0) + tx.amount
       agg.byMerchant[tx.counterparty] = (agg.byMerchant[tx.counterparty] ?? 0) + tx.amount
-      if (hour >= 23 || hour < 6) agg.nightCount++
+      if (hasRealTime(tx) && (hour >= 23 || hour < 6)) agg.nightCount++
     }
   }
 

@@ -1,5 +1,6 @@
 import type { Transaction } from './schema'
 import { countsAsFlow } from './transfer'
+import { hasRealTime } from './schema'
 
 /**
  * 动物人格：由真实消费数据推导，不随机贴标签。
@@ -103,6 +104,7 @@ export function computePersona(txs: Transaction[]): PersonaResult | null {
 
   // 维度3：夜间支出占比（23:00-6:00）
   const nightCount = outs.filter((t) => {
+    if (!hasRealTime(t)) return false
     const h = Number.parseInt(t.time.slice(11, 13), 10)
     return h >= 23 || h < 6
   }).length

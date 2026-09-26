@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { categoryDef } from '../core/categories'
-import { BANK_META, platformName, type BankCode, type Platform } from '../core/schema'
+import { BANK_META, hasRealTime, platformName, type BankCode, type Platform } from '../core/schema'
 import type { Transaction } from '../core/schema'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -73,6 +73,10 @@ export function CategoryChip({ name }: { name: string }) {
       {def.name}
     </span>
   )
+}
+
+export function fmtTxTime(tx: Transaction): string {
+  return hasRealTime(tx) ? tx.time.slice(5, 16) : tx.time.slice(5, 10)
 }
 
 export function fmtMoney(n: number, showAmount = true): string {

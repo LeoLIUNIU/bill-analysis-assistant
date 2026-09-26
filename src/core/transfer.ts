@@ -142,7 +142,8 @@ export function detectTransfers(txs: Transaction[]): TransferReport {
 
 /**
  * 跨渠道去重。
- * 配对条件：金额精确相等(±0.005) + 日期±3天 + 银行行含渠道关键词 + App行支付方式为银行卡。
+ * 第一遍（高精度）：银行渠道支出行 ↔ App侧中性行（零钱充值/余额宝）——这是给钱包充值的场景。
+ * 第二遍：银行渠道支出行 ↔ App侧银行卡支付的消费行——同一笔消费两边各记一次。
  * 贪心策略：同金额多候选时，优先商户名吻合者，再取日期最近者。
  * 非对称结果：银行行标记 internal 被排除；App行保留计数，仅互设 pairId 供查询。
  */
@@ -160,20 +161,39 @@ function dedupCrossChannel(eligible: Transaction[]): number {
   const appRows = eligible.filter(
     (t) =>
       !isBankPlatform(t.platform) &&
-      t.direction === 'out' &&
-      !t.transferFlag &&
       !t.pairId &&
-      countsAsFlow(t) &&
-      /银行/.test(t.payMethod),
+      !t.transferFlag &&
+      t.payMethod && /银行/.test(t.payMethod),
   )
   if (appRows.length === 0) return 0
 
   let deduped = 0
+
+  // 第一遍：银行渠道行 ↔ App中性行（零钱充值/余额宝转入）——充值场景，App侧本就不计收支
+  const appNeutrals = appRows.filter((t) => t.direction === 'neutral')
   for (const bank of bankRows) {
+    if (bank.pairId) continue
+    const match = appNeutrals.find(
+      (n) => !n.pairId && Math.abs(n.amount - bank.amount) <= 0.005 && daysBetween(bank.time, n.time) <= 3,
+    )
+    if (match) {
+      bank.transferFlag = 'internal'
+      bank.flagSource = 'auto'
+      bank.confidence = 0.85
+      bank.pairId = match.id
+      match.pairId = bank.id
+      deduped++
+    }
+  }
+
+  // 第二遍：银行渠道行 ↔ App银行卡支付的消费行（out↔out）
+  const bankOuts = bankRows.filter((t) => !t.pairId)
+  const appOuts = appRows.filter((t) => t.direction === 'out' && countsAsFlow(t))
+  for (const bank of bankOuts) {
     if (bank.pairId) continue
     let best: Transaction | null = null
     let bestScore = -Infinity
-    for (const app of appRows) {
+    for (const app of appOuts) {
       if (app.pairId) continue
       if (Math.abs(app.amount - bank.amount) > 0.005) continue
       const d = daysBetween(bank.time, app.time)

@@ -1,4 +1,5 @@
 import type { BankCode, Direction, Transaction } from '../schema'
+import { platformName } from '../schema'
 import { transactionId } from '../ids'
 import { findHeaderRow, monthOf, normalizeHeader, splitLines } from './detect'
 import Papa from 'papaparse'
@@ -119,7 +120,7 @@ function detectColumns(header: string[]): BankColumns | null {
   let counterparty = find('对方户名', '交易对方', '商户名称', '交易场所', '对方名称')
   let item = find('交易摘要', '摘要', '商品说明', '交易描述', '用途', '附言', '备注')
   const type = find('交易类型', '业务类型', '交易渠道')
-  const payAccount = find('账户', '卡号', '卡种')
+  const payAccount = cols.findIndex((h) => (h.includes('账户') || h.includes('卡号') || h.includes('卡种')) && !h.includes('余额'))
   const status = find('交易状态', '状态')
   const billNo = find('流水号', '凭证号', '交易单号', '记录号')
 
@@ -186,7 +187,8 @@ export function bankFromRows(allRows: string[][], platform: BankCode, sourceFile
     const row = allRows[r]
     if (!row || row.length < 2) continue
 
-    const time = parseBankDate(row[cols.date] ?? '', fallbackYear)
+    const rawDate = row[cols.date] ?? ''
+    const time = parseBankDate(rawDate, fallbackYear)
     if (!time) {
       // 末尾统计行/空行等，静默跳过
       if ((row[cols.date] ?? '').trim()) dropped++
@@ -251,13 +253,14 @@ export function bankFromRows(allRows: string[][], platform: BankCode, sourceFile
       amount,
       direction,
       category: '',
-      payMethod: payAccount || bankLabel || '银行卡',
+      payMethod: payAccount || bankLabel || platformName(platform) + '卡',
       status,
       type: type || item,
       billNo,
       transferFlag: null,
       flagSource: null,
       confidence: 0,
+      hasTime: /:\d{2}/.test(rawDate) || /d{10,}/.test(rawDate.replace(/D/g, '')),
     })
   }
 

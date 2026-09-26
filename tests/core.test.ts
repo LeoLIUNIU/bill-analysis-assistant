@@ -5,15 +5,18 @@ import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { ALIPAY_SAMPLE_CSV, CMB_SAMPLE_CSV, WECHAT_SAMPLE_CSV } from '../src/demo/samples'
 import { decodeBuffer, detectPlatform, parseAmount, daysBetween } from '../src/core/parsers/detect'
+import { bankFromRows } from '../src/core/parsers/bank'
 import { parseBillText, parseBillXlsx, processPipeline, reviewQueueOf } from '../src/core/pipeline'
 import { groupPdfTextItems, pdfPositionedRowsToBill, pdfRowsToBill } from '../src/core/parsers/pdf'
 import { parseBankDate } from '../src/core/parsers/bank'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
+import { autoCategorize } from '../src/core/categories'
 import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses, shoppingSpend } from '../src/core/analysis'
 import { buildReportHTML } from '../src/core/report'
 import { countsAsFlow, needsReview } from '../src/core/transfer'
+import type { Transaction } from '../src/core/schema'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -694,6 +697,91 @@ describe('电商平台消费识别', () => {
   it('无相关消费时返回空数组', () => {
     const merged = parseBillText(WECHAT_SAMPLE_CSV).transactions.filter((t) => t.direction === 'in')
     expect(shoppingSpend(merged, 100)).toEqual([])
+  })
+})
+
+describe('P0 修复：银行弱信息行处理', () => {
+  const mk = (platform: 'citic' | 'cmb', id: string, over: Partial<Record<string, unknown>>): Transaction => ({
+    id, platform, time: '2026-09-01 00:00:00', month: '2026-09',
+    counterparty: '', item: '', amount: 100, direction: 'out', category: '',
+    payMethod: '', status: '', type: '', billNo: id,
+    transferFlag: null, flagSource: null, confidence: 0,
+    ...over,
+  } as unknown as Transaction)
+
+  it('渠道摘要分类：拼多多/美团/微信转账/网银在线各归其位', () => {
+    const cases: Array<[string, string, string]> = [
+      // [摘要文本, 期望分类, 说明]
+      ['财付通-拼多多平台商户', '日常购物', '渠道+商户'],
+      ['美团支付(钱袋宝)', '餐饮美食', '美团支付'],
+      ['财付通-微信转账', '人情往来', '微信转账'],
+      ['网银在线-京东金融', '日常购物', '网银在线=京东支付'],
+      ['美团买菜', '日常购物', '买菜不是下馆子'],
+    ]
+    for (const [text, cat] of cases) {
+      const tx = mk('citic', 't' + text, { item: text, counterparty: text })
+      expect(autoCategorize(tx)).toBe(cat)
+    }
+  })
+
+  it('渠道摘要规则不影响微信/支付宝行分类', () => {
+    const wx = mk('wechat', 'w1', { item: '财付通测试', counterparty: '某商户', type: '商户消费' })
+    // 微信行不走银行渠道规则，正常关键词分类
+    expect(autoCategorize(wx)).toBe('其他支出')
+  })
+
+  it('hasTime：日期行标记false，日期时间行标记true', () => {
+    const rows = [
+      ['交易日期', '收入金额', '支出金额', '账户余额', '交易摘要'],
+      ['20260825', '', '8.00', '100.00', '消费A'],
+      ['2026-08-26 14:30:25', '', '9.00', '91.00', '消费B'],
+    ]
+    const result = bankFromRows(rows, 'bank', '测试')
+    const [a, b] = result.transactions
+    expect(a.hasTime).toBe(false)
+    expect(a.time).toBe('2026-08-25 00:00:00')
+    expect(b.hasTime).toBe(true)
+  })
+
+  it('夜间统计排除银行默认00:00行', () => {
+    const rows = [
+      ['交易日期', '支出金额', '交易摘要'],
+      ['20260825', '8.00', '消费A'], // 默认00:00 → 不算夜间
+      ['2026-08-26 23:30:00', '9.00', '消费B'], // 真实23:30 → 夜间
+    ]
+    const txs = bankFromRows(rows, 'bank', '测试').transactions
+    const agg = aggregateMonth('2026-08', txs)
+    expect(agg.nightCount).toBe(1)
+  })
+
+  it('支付方式列不再误匹配"账户余额"，回退银行名', () => {
+    const rows = [
+      ['交易日期', '收入金额', '支出金额', '账户余额', '交易摘要'],
+      ['20260825', '', '8.00', 'RMB 22316.63', '财付通快捷支付'],
+    ]
+    const result = bankFromRows(rows, 'citic', '测试')
+    expect(result.transactions[0].payMethod).toBe('中信银行卡')
+    // 余额值绝不能出现在支付方式里
+    expect(result.transactions[0].payMethod).not.toContain('RMB')
+    expect(result.transactions[0].payMethod).not.toContain('22316')
+  })
+
+  it('跨渠道充值对冲：银行财付通行 ↔ 微信零钱充值（中性行）', () => {
+    const rows = [
+      ['交易日期', '支出金额', '交易摘要'],
+      ['20260820', '500.00', '财付通-微信转账'],
+    ]
+    const bankTx = bankFromRows(rows, 'cmb', '测试').transactions
+    const wxTopup: Transaction = {
+      ...bankTx[0],
+      id: 'wxtopup', platform: 'wechat', time: '2026-08-21 09:00:00',
+      type: '零钱充值', item: '零钱充值', direction: 'neutral', payMethod: '工商银行(1234)',
+    }
+    processPipeline([bankTx[0], wxTopup], {})
+    // 银行行应被标记 internal（充值场景）
+    const txs = processPipeline([bankTx[0], wxTopup], {})
+    expect(txs[0].transferFlag).toBe('internal')
+    expect(countsAsFlow(txs[0])).toBe(false)
   })
 })
 

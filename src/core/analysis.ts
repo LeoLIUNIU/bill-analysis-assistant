@@ -1,5 +1,6 @@
 import type { MonthlyAggregate, Transaction } from './schema'
 import { countsAsFlow } from './transfer'
+import { hasRealTime } from './schema'
 
 /**
  * 深度分析引擎：分类深析、支付方式、固定支出识别、收入构成。
@@ -321,7 +322,7 @@ export function deepMining(txs: Transaction[], allTxs: Transaction[]): DeepMinin
     const hour = Number.parseInt(t.time.slice(11, 13), 10)
     const day = Number.parseInt(t.time.slice(8, 10), 10)
     let win: WindowStat | null = null
-    if (hour >= 23 || hour < 6) win = night
+    if (hasRealTime(t) && (hour >= 23 || hour < 6)) win = night
     else if (day <= 3) win = monthStart
     else if (day >= 25) win = monthEnd
     if (win) {

@@ -73,6 +73,22 @@ export interface Transaction {
   categoryOverride?: string
   /** 演示数据标记：一键体验生成的账单，可一键清除 */
   isDemo?: boolean
+  /** 是否有真实时刻。银行PDF常只有日期（默认 00:00:00），夜间统计等需排除 */
+  hasTime?: boolean
+}
+
+/**
+ * 该笔交易是否带可信时刻。
+ * 银行账单只有日期时解析为 00:00:00——这种行不能参与"深夜消费"等小时级统计。
+ */
+export function hasRealTime(t: Pick<Transaction, 'hasTime' | 'platform' | 'time'>): boolean {
+  if (t.hasTime === true) return true
+  if (t.hasTime === false) return false
+  // 兼容旧数据：银行平台且恰好为整点零分零秒，大概率是日期默认值
+  if (t.platform !== 'wechat' && t.platform !== 'alipay') {
+    return !t.time.endsWith('00:00:00')
+  }
+  return true
 }
 
 export interface ParsedBill {

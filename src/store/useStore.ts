@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Correction, MonthlyAggregate, ParsedBill, Transaction } from '../core/schema'
+import { platformName } from '../core/schema'
 import { aggregateMonth, monthsOf } from '../core/month'
 import { mergeTransactions, parseBillFile, parseBillText, processPipeline } from '../core/pipeline'
 import { buildArchive, downloadTextFile, parseArchive, serializeArchive } from '../core/archive'
@@ -145,6 +146,19 @@ export const useStore = create<SongshuState>()(
     }),
     {
       name: 'songshu-store-v1',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        // 旧版解析器曾把银行行的"账户余额/摘要"误写入支付方式；迁移为银行名
+        let migrated = false
+        for (const t of state.transactions as Transaction[]) {
+          const isBank = t.platform !== 'wechat' && t.platform !== 'alipay'
+          if (isBank && t.payMethod !== platformName(t.platform)) {
+            t.payMethod = platformName(t.platform)
+            migrated = true
+          }
+        }
+        void migrated
+      },
       partialize: (s) => ({
         transactions: s.transactions,
         corrections: s.corrections,

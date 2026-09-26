@@ -100,12 +100,42 @@ function matches(text: string, keywords: string[]): boolean {
  */
 const HOUSING_STRONG = ['电费', '水费', '燃气', '房租', '物业费', '供暖', '热力']
 
+/**
+ * 银行渠道摘要分类规则包。
+ * 银行账单里大量交易只有渠道+商户的复合摘要（如"财付通-拼多多平台商户"），
+ * 信息密度低但并非无信息——按摘要特征归类，把"其他支出"池压到最小。
+ * 仅对银行平台生效（微信/支付宝行自带更可靠的分类信息）。
+ */
+const BANK_CHANNEL_RULES: Array<{ cat: string; keywords: string[] }> = [
+  { cat: '日常购物', keywords: ['拼多多', '多多买菜', '网银在线', '京东'] },
+  { cat: '日常购物', keywords: ['美团买菜', '美团优选', '小象超市'] },
+  { cat: '餐饮美食', keywords: ['美团', '饿了么', '肯德基', '麦当劳', '星巴克', '瑞幸'] },
+  { cat: '人情往来', keywords: ['微信转账', '财付通-微信', '转账-微信'] },
+  { cat: '交通出行', keywords: ['滴滴', '高德', '携程', '铁路', '航空'] },
+  { cat: '通讯网络', keywords: ['移动', '联通', '电信', '话费'] },
+  { cat: '文娱休闲', keywords: ['视频会员', '音乐', '腾讯视频', '爱奇艺', '游戏', 'bilibili', '哔哩哔哩'] },
+]
+
+/** 收入侧：代发/工资等银行摘要 */
+const BANK_INCOME_RULES: Array<{ cat: string; keywords: string[] }> = [
+  { cat: '工资薪水', keywords: ['代发', '工资', '薪资', '劳务费', '报销'] },
+  { cat: '红包转账', keywords: ['财付通', '微信', '支付宝', '转账'] },
+]
+
 export function autoCategorize(tx: Transaction): string {
   const haystack = `${tx.type} ${tx.counterparty} ${tx.item} ${tx.payMethod}`
   const itemText = `${tx.counterparty} ${tx.item}`
+  const isBank = tx.platform !== 'wechat' && tx.platform !== 'alipay'
 
   if (tx.direction !== 'in' && HOUSING_STRONG.some((k) => itemText.includes(k))) {
     return '住房水电'
+  }
+
+  if (isBank) {
+    const rules = tx.direction === 'in' ? BANK_INCOME_RULES : BANK_CHANNEL_RULES
+    for (const rule of rules) {
+      if (matches(itemText, rule.keywords)) return rule.cat
+    }
   }
 
   if (tx.platform === 'alipay' && tx.type && ALIPAY_CATEGORY_ALIAS[tx.type]) {
