@@ -42,7 +42,10 @@ interface SongshuState {
   skippedLabelIds: string[]
   /** 月度预算（0=未设定） */
   budgetMonthly: number
+  /** 按类目预算：分类名 → 月预算金额 */
+  budgetByCategory: Record<string, number>
   setBudgetMonthly: (v: number) => void
+  setBudgetCategory: (cat: string, v: number) => void
 
   importFiles: (files: File[]) => Promise<ImportResult[]>
   loadDemo: () => void
@@ -66,6 +69,7 @@ export const useStore = create<SongshuState>()(
       selectedMonth: '',
       skippedLabelIds: [],
       budgetMonthly: 0,
+      budgetByCategory: {},
       importResults: [],
 
       importFiles: async (files) => {
@@ -119,6 +123,15 @@ export const useStore = create<SongshuState>()(
       setBudgetMonthly: (v) => {
         set({ budgetMonthly: Math.max(0, Math.round(v)) })
       },
+      setBudgetCategory: (cat, v) => {
+        set((s) => {
+          const next = { ...s.budgetByCategory }
+          const amt = Math.max(0, Math.round(v))
+          if (amt === 0) delete next[cat]
+          else next[cat] = amt
+          return { budgetByCategory: next }
+        })
+      },
 
       skipLabel: (id) => {
         set((s) => ({
@@ -160,7 +173,7 @@ export const useStore = create<SongshuState>()(
 
       clearAll: () => {
         if (window.confirm('确定清空本浏览器的所有账单数据吗？此操作不可恢复。')) {
-          set({ transactions: [], corrections: {}, archiveMonths: {}, importResults: [], selectedMonth: '', skippedLabelIds: [], budgetMonthly: 0 })
+          set({ transactions: [], corrections: {}, archiveMonths: {}, importResults: [], selectedMonth: '', skippedLabelIds: [], budgetMonthly: 0, budgetByCategory: {} })
         }
       },
 
@@ -188,6 +201,7 @@ export const useStore = create<SongshuState>()(
         selectedMonth: s.selectedMonth,
         skippedLabelIds: s.skippedLabelIds,
         budgetMonthly: s.budgetMonthly,
+        budgetByCategory: s.budgetByCategory,
       }),
     },
   ),

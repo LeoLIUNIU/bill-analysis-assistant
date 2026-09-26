@@ -103,11 +103,14 @@ function assignCellsToColumns(row: PdfCell[], headerXs: number[]): string[] {
 
 /** 定位行 → 找表头并按坐标对齐 → 通用银行解析 */
 function alignedRowsToBill(posRows: PdfCell[][]): ParsedBill {
-  // 表头行：同时含"日期"与"金额"关键词的行
+  // 表头行：含"日期"与金额类关键词（金额/收入/支出/借方/贷方/转入/转出）的行
+  const isAmountCol = (t: string) =>
+    t.includes('金额') ||
+    ['收入', '支出', '转入', '转出', '贷方', '借方'].some((k) => t === k || t.includes(k + '发生额') || t.includes(k + '金额'))
   let headerIdx = -1
   for (let i = 0; i < Math.min(posRows.length, 60); i++) {
     const texts = posRows[i].map((c) => c.text)
-    if (texts.some((t) => /日期|记账日|交易日/.test(t)) && texts.some((t) => t.includes('金额'))) {
+    if (texts.some((t) => /日期|记账日|交易日/.test(t)) && texts.some(isAmountCol)) {
       headerIdx = i
       break
     }

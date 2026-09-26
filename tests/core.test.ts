@@ -880,6 +880,62 @@ describe('P1/P3 洞察分级与文案', () => {
   })
 })
 
+describe('银行格式适配扩展', () => {
+  it('工商银行风格：裸收入/支出双列（无金额字样）', () => {
+    const rows = [
+      ['中国工商银行借记卡账户明细清单'],
+      ['记账日期', '摘要', '对方户名', '支出', '收入', '余额'],
+      ['20260901', '消费', '超市', '150.00', '', '1000.00'],
+      ['20260902', '代发工资', '公司', '', '8000.00', '9000.00'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.platform).toBe('icbc')
+    expect(bill.transactions.length).toBe(2)
+    const spend = bill.transactions.find((t) => t.direction === 'out')!
+    expect(spend.amount).toBe(150)
+    const income = bill.transactions.find((t) => t.direction === 'in')!
+    expect(income.amount).toBe(8000)
+  })
+
+  it('交通银行风格：借方发生额/贷方发生额', () => {
+    const rows = [
+      ['交通银行电子回单'],
+      ['交易日期', '借贷标志', '借方发生额', '贷方发生额', '摘要'],
+      ['2026-09-01', '借', '66.00', '', '转账'],
+      ['2026-09-02', '贷', '', '1200.00', '转入'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.platform).toBe('bocom')
+    const out = bill.transactions.find((t) => t.direction === 'out')!
+    expect(out.amount).toBe(66)
+    const inc = bill.transactions.find((t) => t.direction === 'in')!
+    expect(inc.amount).toBe(1200)
+  })
+
+  it('会计负数括号：(1,234.56) = -1234.56', () => {
+    const rows = [
+      ['招商银行流水'],
+      ['交易日期', '交易金额', '借贷标志', '交易摘要'],
+      ['2026-09-01', '(1,234.56)', '借', '大额消费'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.transactions[0].amount).toBe(1234.56)
+    expect(bill.transactions[0].direction).toBe('out')
+  })
+
+  it('收/付标志：付=支出，收=收入', () => {
+    const rows = [
+      ['某银行明细'],
+      ['交易日期', '金额', '收付标志', '摘要'],
+      ['2026-09-01', '100.00', '收', '入账'],
+      ['2026-09-02', '50.00', '付', '缴费'],
+    ]
+    const bill = pdfRowsToBill(rows)
+    expect(bill.transactions[0].direction).toBe('in')
+    expect(bill.transactions[1].direction).toBe('out')
+  })
+})
+
 describe('动物人格', () => {
   const merged = [
     ...parseBillText(WECHAT_SAMPLE_CSV).transactions,

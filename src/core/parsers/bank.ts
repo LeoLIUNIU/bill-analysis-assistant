@@ -61,9 +61,13 @@ function pad(v: string): string {
 
 function parseNum(raw: string): number {
   // 银行账单金额可能带币种前缀（"RMB 8.00"）或货币符号，一并剔除字母与符号
-  const cleaned = raw.replace(/[A-Za-z¥￥,""\s元人民币]/g, '')
+  let cleaned = raw.replace(/[A-Za-z¥￥,""\s元人民币]/g, '')
   if (!cleaned) return NaN
-  return Number.parseFloat(cleaned)
+  // 会计负数：(1,234.56) = -1234.56
+  const neg = /^\(.*\)$/.test(cleaned)
+  if (neg) cleaned = cleaned.slice(1, -1)
+  const v = Number.parseFloat(cleaned)
+  return Number.isFinite(v) && neg ? -v : v
 }
 
 /* ---------------- 列映射 ---------------- */
@@ -109,9 +113,12 @@ function detectColumns(header: string[]): BankColumns | null {
   amount = amountCandidates.find(({ h }) => h === '交易金额')?.i
     ?? amountCandidates.find(({ h }) => h.includes('金额'))?.i ?? -1
 
-  // 双列格式：收入金额(转入金额/贷方金额) + 支出金额(转出金额/借方金额)
-  const amountIn = cols.findIndex((h) => (h.includes('收入') || h.includes('转入') || h.includes('贷方')) && h.includes('金额'))
-  const amountOut = cols.findIndex((h) => (h.includes('支出') || h.includes('转出') || h.includes('借方')) && h.includes('金额'))
+  // 双列格式：收入金额(转入金额/贷方发生额/贷方金额) + 支出金额(转出金额/借方发生额/借方金额)
+  // 也兼容无"金额"字样的裸列名（工商银行/交通银行风格：支出 | 收入）
+  const isInCol = (h: string) => (h.includes('收入') || h.includes('转入') || h.includes('贷方')) && !h.includes('余额')
+  const isOutCol = (h: string) => (h.includes('支出') || h.includes('转出') || h.includes('借方')) && !h.includes('余额')
+  let amountIn = cols.findIndex(isInCol)
+  let amountOut = cols.findIndex(isOutCol)
   if (amount === -1 && amountIn !== -1 && amountOut !== -1) amount = amountIn
 
   if (amount === -1) return null
@@ -139,7 +146,7 @@ function resolveDirection(raw: string): Direction | null {
   const v = raw.trim()
   if (!v) return null
   if (/收入|贷|转入|存入|入账/.test(v)) return 'in'
-  if (/支出|借|转出|消费|支取|取出/.test(v)) return 'out'
+  if (/支出|借|转出|消费|支取|取出|付款|^付/.test(v)) return 'out'
   return null
 }
 
@@ -147,7 +154,7 @@ function resolveDirection(raw: string): Direction | null {
 
 export function bankFromRows(allRows: string[][], platform: BankCode, sourceFile: string): BankParseResult {
   const joined = allRows.map((r) => r.join('◆'))
-  const headerIdx = findHeaderRow(joined, [['日期', '时间', '记账日', '交易日'], ['金额']])
+  const headerIdx = findHeaderRow(joined, [['日期', '时间', '记账日', '交易日'], ['金额', '收入', '支出', '转入', '转出', '贷方', '借方']])
   if (headerIdx === -1) throw new Error(`未找到${sourceFile}账单表头`)
 
   const header = allRows[headerIdx]
@@ -269,7 +276,7 @@ export function bankFromRows(allRows: string[][], platform: BankCode, sourceFile
 
 /** CSV 文本入口 */
 export function parseBankCsv(text: string, platform: BankCode): Transaction[] {
-  const headerIdx = findHeaderRow(splitLines(text), [['日期', '时间'], ['金额']])
+  const headerIdx = findHeaderRow(splitLines(text), [['日期', '时间', '记账日', '交易日'], ['金额', '收入', '支出', '转入', '转出', '贷方', '借方']])
   if (headerIdx === -1) throw new Error('未找到银行账单表头：需要包含日期与金额列')
   const parsed = Papa.parse<string[]>(splitLines(text).slice(headerIdx).join('\n'), { skipEmptyLines: 'greedy' })
   const result = bankFromRows(parsed.data, platform, '银行')

@@ -85,6 +85,8 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   const shopping = useMemo(() => shoppingSpend(monthTx, agg?.expense ?? 0), [monthTx, agg])
   const budgetMonthly = useStore((s) => s.budgetMonthly)
   const setBudgetMonthly = useStore((s) => s.setBudgetMonthly)
+  const budgetByCategory = useStore((s) => s.budgetByCategory)
+  const setBudgetCategory = useStore((s) => s.setBudgetCategory)
   // 分类月度趋势：Top5 类目 × 月份
   const catTrend = useMemo(() => {
     const months = allMonths.slice(0, 12).reverse()
@@ -238,6 +240,11 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
           insights={insights} incomes={incomes} payMethods={payMethods} catDetails={catDetails}
           budget={{ monthly: budgetMonthly, monthExpense: agg.expense, monthCount: Math.max(1, allMonths.length), scope: selectedMonth || '全部' }}
           onSetBudget={setBudgetMonthly}
+          catRows={Object.entries(agg.byCategory).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([name, spent]) => ({
+            name, emoji: categoryDef(name).emoji, spent: Math.round(spent * 100) / 100,
+          }))}
+          onSetCategory={setBudgetCategory}
+          catBudgets={budgetByCategory}
           labelBanner={labelCandidates.length > 0 ? {
             count: labelCandidates.length,
             sum: labelCandidates.reduce((s, c) => s + c.tx.amount, 0),
@@ -269,12 +276,16 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
 }
 
 
-function BudgetCard({ budget, onSet }: {
+function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
   budget: { monthly: number; monthExpense: number; monthCount: number; scope: string }
   onSet: (v: number) => void
+  catRows: Array<{ name: string; emoji: string; spent: number }>
+  onSetCategory: (cat: string, v: number) => void
+  catBudgets: Record<string, number>
 }) {
   const [editing, setEditing] = useState(false)
   const [input, setInput] = useState('')
+  const [showCats, setShowCats] = useState(false)
 
   if (!budget.monthly && !editing) {
     return (
@@ -331,6 +342,45 @@ function BudgetCard({ budget, onSet }: {
           <button onClick={() => setEditing(true)} className="ml-auto text-xs text-ink-soft hover:text-ink">修改</button>
         </div>
       )}
+
+      {/* 按类目细化 */}
+      <button
+        onClick={() => setShowCats(!showCats)}
+        className="mt-3 text-xs font-medium text-ink-soft hover:text-ink"
+      >
+        {showCats ? '▾ 收起类目预算' : '▸ 按类目细化预算'}
+      </button>
+      {showCats && (
+        <div className="mt-2 space-y-2.5">
+          {catRows.map((r) => {
+            const limit = catBudgets[r.name] ?? 0
+            const base = budget.scope === '全部' ? r.spent / Math.max(1, budget.monthCount) : r.spent
+            const p = limit > 0 ? Math.min(150, (base / limit) * 100) : 0
+            return (
+              <div key={r.name} className="flex items-center gap-2.5 text-xs">
+                <span className="w-24 shrink-0 truncate font-medium text-ink">{r.emoji} {r.name}</span>
+                <input
+                  type="number"
+                  value={limit || ''}
+                  placeholder="0"
+                  onChange={(e) => onSetCategory(r.name, Number.parseFloat(e.target.value) || 0)}
+                  className="w-20 shrink-0 rounded-md border-0 bg-slate-100 px-2 py-1 text-right outline-none ring-1 ring-transparent focus:ring-brand-400"
+                />
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${limit > 0 && base > limit ? 'bg-red-400' : limit > 0 && p > 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                    style={{ width: limit > 0 ? `${Math.min(100, p)}%` : 0 }}
+                  />
+                </div>
+                <span className={`w-24 shrink-0 text-right ${limit > 0 && base > limit ? 'font-bold text-red-500' : 'text-ink-soft'}`}>
+                  {budget.scope === '全部' ? '月均 ' : ''}¥{base.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            )
+          })}
+          <p className="pt-1 text-[11px] text-slate-400">输入月预算金额（填 0 清除）。{budget.scope === '全部' ? '进度条按月均消费对比。' : '进度条按当月消费对比。'}</p>
+        </div>
+      )}
     </Card>
   )
 }
@@ -356,7 +406,7 @@ function monthChip(active: boolean): string {
 
 /* ================= Tab 1: 总览 ================= */
 
-function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails, labelBanner, onStartLabeling, budget, onSetBudget }: {
+function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails, labelBanner, onStartLabeling, budget, onSetBudget, catBudgets, onSetCategory }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
@@ -366,6 +416,9 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
   incomes: ReturnType<typeof incomeBreakdown>
   payMethods: ReturnType<typeof payMethodBreakdown>
   catDetails: CategoryDetail[]
+  catRows: Array<{ name: string; emoji: string; spent: number }>
+  onSetCategory: (cat: string, v: number) => void
+  catBudgets: Record<string, number>
   labelBanner: { count: number; sum: number; share: number } | null
   onStartLabeling: () => void
   budget: { monthly: number; monthExpense: number; monthCount: number; scope: string }
@@ -424,7 +477,15 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
       )}
 
       {/* 预算 */}
-      <BudgetCard budget={budget} onSet={onSetBudget} />
+      <BudgetCard
+        budget={budget}
+        onSet={onSetBudget}
+        catBudgets={catBudgets}
+        catRows={Object.entries(agg.byCategory).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([name, spent]) => ({
+          name, emoji: categoryDef(name).emoji, spent: Math.round(spent * 100) / 100,
+        }))}
+        onSetCategory={onSetCategory}
+      />
 
       {/* 总览卡 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
