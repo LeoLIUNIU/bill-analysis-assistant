@@ -4,6 +4,7 @@ import { suggestCategories } from '../core/labeling'
 import { ALL_CATEGORIES, categoryDef } from '../core/categories'
 import type { Transaction } from '../core/schema'
 import { fmtTxTime, PlatformBadge, fmtMoney } from './ui'
+import { useI18n } from '../i18n'
 
 /**
  * 大额未知引导打标签 · 向导弹窗。
@@ -33,6 +34,7 @@ export function LabelingModal({
   const [index, setIndex] = useState(0)
   const [memo, setMemo] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const { L } = useI18n()
 
   const current = candidates[index]
   const suggestions = useMemo(
@@ -46,19 +48,15 @@ export function LabelingModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={onClose}>
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="text-5xl">🎉</div>
-          <h3 className="mt-4 text-lg font-bold text-ink">标注完成！</h3>
+          <h3 className="mt-4 text-lg font-bold text-ink">{L.card.doneTitle}</h3>
           <p className="mt-2 text-sm text-ink-soft">
-            未分类支出已从 ¥{fmtMoney(poolBefore)} 降到 ¥{fmtMoney(poolAfter)}
-            {poolBefore > 0 && (
-              <>（{Math.round((1 - poolAfter / poolBefore) * 100)}%↓）</>
-            )}
-            ，报表数据更准了。
+            {L.card.doneDesc(fmtMoney(poolBefore), fmtMoney(poolAfter))}
           </p>
           <button
             onClick={onClose}
             className="mt-6 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
           >
-            好的，去看报表
+            {L.card.doneBtn}
           </button>
         </div>
       </div>
@@ -87,16 +85,16 @@ export function LabelingModal({
         {/* 进度 */}
         <div className="flex items-center gap-3 border-b border-slate-100 px-6 pt-5 pb-4">
           <span className="text-xs font-semibold text-ink-soft">
-            {index + 1} / {candidates.length}
+            {L.card.labeling(index + 1, candidates.length)}
           </span>
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
             <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${(index / candidates.length) * 100}%` }} />
           </div>
-          <button onClick={onClose} className="text-xs text-ink-soft hover:text-ink">稍后再说</button>
+          <button onClick={onClose} className="text-xs text-ink-soft hover:text-ink">{L.card.later}</button>
         </div>
 
         <div className="px-6 py-5">
-          <p className="text-sm text-ink-soft">这笔 ¥{fmtMoney(tx.amount)} 的支出，你还记得是什么吗？</p>
+          <p className="text-sm text-ink-soft">{L.card.askExpense(fmtMoney(tx.amount))}</p>
 
           {/* 交易上下文 */}
           <div className="mt-4 rounded-xl bg-slate-50 p-4">
@@ -105,7 +103,7 @@ export function LabelingModal({
               <span className="text-xs text-ink-soft">{fmtTxTime(tx)}</span>
               {tx.payMethod && <span className="text-xs text-ink-soft">· {tx.payMethod}</span>}
             </div>
-            <div className="mt-1.5 text-lg font-bold text-ink">{tx.counterparty || tx.item || '未知商户'}</div>
+            <div className="mt-1.5 text-lg font-bold text-ink">{tx.counterparty || tx.item || L.common.unknownMerchant}</div>
             {tx.item && tx.item !== tx.counterparty && (
               <div className="text-xs text-ink-soft">{tx.item}</div>
             )}
@@ -113,7 +111,7 @@ export function LabelingModal({
 
           {/* 分类建议 */}
           <div className="mt-4">
-            <div className="text-xs font-semibold text-ink-soft">它属于哪一类？</div>
+            <div className="text-xs font-semibold text-ink-soft">{L.card.pickTpl}</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {suggestions.map((cat) => {
                 const def = categoryDef(cat)
@@ -134,7 +132,7 @@ export function LabelingModal({
                   onClick={() => setShowAll(true)}
                   className="rounded-full px-3.5 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-dashed ring-slate-300 hover:text-ink"
                 >
-                  其他分类…
+                  {L.card.otherCat}
                 </button>
               )}
             </div>
@@ -148,13 +146,13 @@ export function LabelingModal({
                   setShowAll(false)
                 }}
               >
-                <option value="" disabled>选择分类…</option>
-                <optgroup label="支出">
+                <option value="" disabled>{L.card.selectCat}</option>
+                <optgroup label={L.analysis.expense}>
                   {ALL_CATEGORIES.filter((c) => c.kind === 'expense').map((c) => (
                     <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
                   ))}
                 </optgroup>
-                <optgroup label="收入">
+                <optgroup label={L.analysis.income}>
                   {ALL_CATEGORIES.filter((c) => c.kind === 'income').map((c) => (
                     <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
                   ))}
@@ -167,7 +165,7 @@ export function LabelingModal({
           <input
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="📝 补充一句事项备注（可选），如：去大连的机票"
+            placeholder={L.card.memoPh}
             className="mt-4 w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none ring-1 ring-transparent transition-shadow focus:bg-white focus:ring-brand-400"
           />
         </div>
@@ -175,13 +173,13 @@ export function LabelingModal({
         {/* 底部操作 */}
         <div className="flex items-center gap-2 border-t border-slate-100 px-6 py-4">
           <span className="text-[11px] text-slate-400">
-            标完这批，未分类支出只剩 ¥{fmtMoney(poolAfter)}
+            {L.card.remainNote(fmtMoney(poolAfter))}
           </span>
           <button
             onClick={skip}
             className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium text-ink-soft hover:bg-slate-100"
           >
-            跳过这笔（不再提示）
+            {L.card.skipThis}
           </button>
         </div>
       </div>

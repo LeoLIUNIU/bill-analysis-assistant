@@ -14,6 +14,10 @@ export interface AnimalDef {
   name: string
   epithet: string
   copy: string
+  /** 英文文案（i18n） */
+  nameEn: string
+  epithetEn: string
+  copyEn: string
   gradient: string
 }
 
@@ -21,44 +25,67 @@ export const ANIMALS: AnimalDef[] = [
   {
     key: 'squirrel', emoji: '🐿️', name: '松鼠', epithet: '均衡守护型',
     copy: '收支稳稳当当，该花花、该存存，森林里最让人羡慕的作息。',
+    nameEn: 'Squirrel', epithetEn: 'The Balanced Keeper',
+    copyEn: 'Steady income, steady spending — save when you should, splurge when it counts. The envy of the forest.',
     gradient: 'from-amber-400 to-orange-500',
   },
   {
     key: 'hamster', emoji: '🐹', name: '仓鼠', epithet: '囤货大师',
     copy: '每一粒粮食都要搬进洞里才安心，存钱罐见了你都想喊师父。',
+    nameEn: 'Hamster', epithetEn: 'The Stash Master',
+    copyEn: 'Every seed goes into the burrow before you can rest. Piggy banks bow to you.',
     gradient: 'from-yellow-400 to-amber-600',
   },
   {
     key: 'butterfly', emoji: '🦋', name: '蝴蝶', epithet: '随心花蝶',
     copy: '钱包的花期到了就尽情飞，落在哪朵花上全看心情。偶尔也停一停嘛。',
+    nameEn: 'Butterfly', epithetEn: 'The Free Spirit',
+    copyEn: 'You fly wherever the flowers bloom and land wherever the mood takes you. Maybe hover a little sometimes?',
     gradient: 'from-fuchsia-400 to-purple-500',
   },
   {
     key: 'owl', emoji: '🦉', name: '猫头鹰', epithet: '夜色消费者',
     copy: '深夜的购物车，藏着白天不敢下的单。夜色温柔，下单也温柔。',
+    nameEn: 'Owl', epithetEn: 'The Midnight Shopper',
+    copyEn: 'The late-night cart hides what daytime hesitated to buy. The night is gentle — and so is checkout.',
     gradient: 'from-indigo-400 to-slate-600',
   },
   {
     key: 'panda', emoji: '🐼', name: '熊猫', epithet: '专一氪金型',
     copy: '认定了就猛吃一种竹子，"专一"这个词就是为你发明的。',
+    nameEn: 'Panda', epithetEn: 'The Loyal Devotee',
+    copyEn: 'When you pick a bamboo, you commit. "Single-minded" was invented for you.',
     gradient: 'from-slate-400 to-gray-600',
   },
   {
     key: 'bee', emoji: '🐝', name: '蜜蜂', epithet: '小口勤食型',
     copy: '小额高频，勤勤恳恳，生活里每一口小小的甜都逃不过你的采撷。',
+    nameEn: 'Bee', epithetEn: 'The Busy Sipper',
+    copyEn: 'Small sips, often and diligently — not a single little sweetness of life escapes you.',
     gradient: 'from-lime-400 to-yellow-500',
   },
   {
     key: 'hedgehog', emoji: '🦔', name: '刺猬', epithet: '大事担当型',
     copy: '平时安静，出手就是大事。低频大额选手，你的消费很有分量。',
+    nameEn: 'Hedgehog', epithetEn: 'The Big Mover',
+    copyEn: 'Quiet most days, formidable when you strike. Rare but weighty — your spending has heft.',
     gradient: 'from-orange-400 to-rose-500',
   },
   {
     key: 'migratory', emoji: '🦢', name: '候鸟', epithet: '周期爆花型',
     copy: '花钱像候鸟迁徙，一阵一阵：来的时候声势浩大，走的时候悄无声息。',
+    nameEn: 'Migratory Bird', epithetEn: 'The Season Spender',
+    copyEn: 'Spending migrates in waves: arriving with fanfare, leaving without a sound.',
     gradient: 'from-sky-400 to-cyan-600',
   },
 ]
+
+/** 按语言取动物的名称/称号/文案 */
+export function animalText(def: AnimalDef, lang: 'zh' | 'en'): { name: string; epithet: string; copy: string } {
+  return lang === 'en'
+    ? { name: def.nameEn, epithet: def.epithetEn, copy: def.copyEn }
+    : { name: def.name, epithet: def.epithet, copy: def.copy }
+}
 
 export interface PersonaResult {
   primary: AnimalDef

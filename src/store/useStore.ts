@@ -40,6 +40,9 @@ interface SongshuState {
   importResults: ImportResult[]
   /** 大额未知标注中用户选择跳过的流水ID */
   skippedLabelIds: string[]
+  /** 界面语言 */
+  lang: 'zh' | 'en'
+  setLang: (l: 'zh' | 'en') => void
   /** 月度预算（0=未设定） */
   budgetMonthly: number
   /** 按类目预算：分类名 → 月预算金额 */
@@ -68,6 +71,7 @@ export const useStore = create<SongshuState>()(
       archiveMonths: {},
       selectedMonth: '',
       skippedLabelIds: [],
+      lang: 'zh',
       budgetMonthly: 0,
       budgetByCategory: {},
       importResults: [],
@@ -120,6 +124,9 @@ export const useStore = create<SongshuState>()(
         }))
       },
 
+      setLang: (l) => {
+        set({ lang: l })
+      },
       setBudgetMonthly: (v) => {
         set({ budgetMonthly: Math.max(0, Math.round(v)) })
       },

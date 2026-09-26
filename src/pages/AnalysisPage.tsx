@@ -25,6 +25,7 @@ import { downloadReport, type ReportData } from '../core/report'
 import { computePersona } from '../core/persona'
 import { computeLabelCandidates, unlabeledPool } from '../core/labeling'
 import { LabelingModal } from '../components/LabelingModal'
+import { useI18n } from '../i18n'
 import { countsAsFlow, needsReview } from '../core/transfer'
 import { BANK_META, platformName, type Correction, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
@@ -33,13 +34,14 @@ import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney, fmtT
 
 type Tab = 'overview' | 'spending' | 'transactions'
 
-const TABS: Array<{ key: Tab; label: string; emoji: string }> = [
-  { key: 'overview', label: '总览', emoji: '🗂️' },
-  { key: 'spending', label: '花费分析', emoji: '🍽️' },
-  { key: 'transactions', label: '交易记录', emoji: '📋' },
+const TABS: Array<{ key: Tab; labelKey: 'tabOverview' | 'tabSpending' | 'tabTx'; emoji: string }> = [
+  { key: 'overview', labelKey: 'tabOverview', emoji: '🗂️' },
+  { key: 'spending', labelKey: 'tabSpending', emoji: '🍽️' },
+  { key: 'transactions', labelKey: 'tabTx', emoji: '📋' },
 ]
 
 export function AnalysisPage({ hasData }: { hasData: boolean }) {
+  const { lang, L } = useI18n()
   const [tab, setTab] = useState<Tab>('overview')
   const { processed, queue, allMonths, allAggregates, selectedAggregate, monthTx } = useProcessed()
   const selectedMonth = useStore((s) => s.selectedMonth)
@@ -54,8 +56,8 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   const agg = selectedAggregate
 
   const insights = useMemo(
-    () => (agg ? generateInsights(monthTx, agg, prev, selectedMonth || '本期') : []),
-    [monthTx, agg, prev, selectedMonth],
+    () => (agg ? generateInsights(monthTx, agg, prev, selectedMonth || (lang === 'en' ? 'All' : '本期'), lang) : []),
+    [monthTx, agg, prev, selectedMonth, lang],
   )
   const catDetails = useMemo(
     () => (agg ? categoryDetails(monthTx, agg.expense, prev) : []),
@@ -154,11 +156,11 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
     return (
       <EmptyState
         emoji="📊"
-        title="还没有可分析的账单"
-        desc="先在引导页上传微信/支付宝账单（可多个），一键分析后这里会出现完整报告。"
+        title={L.analysis.emptyTitle}
+        desc={L.analysis.emptyDesc}
         action={
           <button onClick={() => navigate('guide')} className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700">
-            去上传账单
+            {L.analysis.emptyBtn}
           </button>
         }
       />
@@ -170,8 +172,8 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
       {/* 页头：标题 + 月份 + 下载报告 */}
       <div className="flex flex-wrap items-end justify-between gap-3 pt-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">账单分析</h1>
-          <p className="mt-1 text-sm text-ink-soft">范围：{label} · {agg.txnCount} 笔有效收支 · 转账/还款已自动对冲</p>
+          <h1 className="text-2xl font-extrabold text-ink">{L.analysis.title}</h1>
+          <p className="mt-1 text-sm text-ink-soft">{L.analysis.scope(label, agg.txnCount)}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -179,14 +181,14 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
             className="rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-ink ring-1 ring-slate-200 transition-all hover:ring-brand-300"
             title="导出JSON存档，换设备可导入恢复历史"
           >
-            💾 存档
+            {L.analysis.archive}
           </button>
           <button
             onClick={() => archiveInputRef.current?.click()}
             className="rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-ink ring-1 ring-slate-200 transition-all hover:ring-brand-300"
             title="导入此前导出的JSON存档"
           >
-            📂 恢复
+            {L.analysis.restore}
           </button>
           <input
             ref={archiveInputRef}
@@ -203,7 +205,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
             onClick={handleDownloadReport}
             className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
           >
-            ⬇️ 下载分析报告
+            {L.analysis.download}
           </button>
         </div>
       </div>
@@ -220,8 +222,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
                 : 'text-ink-soft hover:text-ink'
             }`}
           >
-            <span className="mr-1">{t.emoji}</span>{t.label}
-            {t.key === 'transactions' && queue.length > 0 && (
+            <span className="mr-1">{t.emoji}</span>{L.analysis[t.labelKey]}            {t.key === 'transactions' && queue.length > 0 && (
               <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-px text-[10px] font-bold text-white">{queue.length}</span>
             )}
           </button>
@@ -283,6 +284,7 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
   onSetCategory: (cat: string, v: number) => void
   catBudgets: Record<string, number>
 }) {
+  const { L } = useI18n()
   const [editing, setEditing] = useState(false)
   const [input, setInput] = useState('')
   const [showCats, setShowCats] = useState(false)
@@ -293,7 +295,7 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
         onClick={() => { setInput(''); setEditing(true) }}
         className="flex w-full items-center gap-2 rounded-2xl bg-white px-5 py-3 text-left text-sm text-ink-soft ring-1 ring-dashed ring-slate-300 transition-all hover:ring-brand-400"
       >
-        🎯 设定月度预算，让分析带一个行动目标
+        {L.analysis.budgetSet}
       </button>
     )
   }
@@ -309,26 +311,26 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
     <Card className="p-4">
       {editing ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold text-ink">🎯 每月预算</span>
+          <span className="font-semibold text-ink">{L.analysis.budgetLabel}</span>
           <input
             autoFocus
             type="number"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="输入金额"
+            placeholder={L.analysis.budgetPlaceholder}
             className="w-32 rounded-lg border-0 bg-slate-100 px-3 py-1.5 outline-none ring-1 ring-transparent focus:ring-brand-400"
           />
           <button
             onClick={() => { onSet(Number.parseFloat(input) || 0); setEditing(false) }}
             className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
           >
-            保存
+            {L.analysis.budgetSave}
           </button>
-          <button onClick={() => setEditing(false)} className="px-2 py-1.5 text-xs text-ink-soft hover:text-ink">取消</button>
+          <button onClick={() => setEditing(false)} className="px-2 py-1.5 text-xs text-ink-soft hover:text-ink">{L.analysis.budgetCancel}</button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="font-semibold text-ink">🎯 月度预算 ¥{budget.monthly.toLocaleString('zh-CN')}</span>
+          <span className="font-semibold text-ink">{L.analysis.budgetLabel} ¥{budget.monthly.toLocaleString('zh-CN')}</span>
           <div className="h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-slate-100">
             <div
               className={`h-full rounded-full ${over ? 'bg-red-400' : pct > 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
@@ -336,10 +338,10 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
             />
           </div>
           <span className={`font-bold ${over ? 'text-red-500' : 'text-emerald-600'}`}>
-            {budget.scope === '全部' ? '月均' : budget.scope} ¥{baseline.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+            {budget.scope === '全部' ? L.analysis.budgetAvg : budget.scope} ¥{baseline.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
           </span>
-          <span className="text-xs text-ink-soft">{Math.round(pct)}%{over ? ' · 超支' : ''}</span>
-          <button onClick={() => setEditing(true)} className="ml-auto text-xs text-ink-soft hover:text-ink">修改</button>
+          <span className="text-xs text-ink-soft">{Math.round(pct)}%{over ? L.analysis.budgetOver : ''}</span>
+          <button onClick={() => setEditing(true)} className="ml-auto text-xs text-ink-soft hover:text-ink">{L.analysis.budgetEdit}</button>
         </div>
       )}
 
@@ -348,7 +350,7 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
         onClick={() => setShowCats(!showCats)}
         className="mt-3 text-xs font-medium text-ink-soft hover:text-ink"
       >
-        {showCats ? '▾ 收起类目预算' : '▸ 按类目细化预算'}
+        {showCats ? L.analysis.catBudgetCollapse : L.analysis.catBudgetExpand}
       </button>
       {showCats && (
         <div className="mt-2 space-y-2.5">
@@ -373,12 +375,12 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
                   />
                 </div>
                 <span className={`w-24 shrink-0 text-right ${limit > 0 && base > limit ? 'font-bold text-red-500' : 'text-ink-soft'}`}>
-                  {budget.scope === '全部' ? '月均 ' : ''}¥{base.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                  {budget.scope === '全部' ? `${L.analysis.budgetAvg} ` : ''}¥{base.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
                 </span>
               </div>
             )
           })}
-          <p className="pt-1 text-[11px] text-slate-400">输入月预算金额（填 0 清除）。{budget.scope === '全部' ? '进度条按月均消费对比。' : '进度条按当月消费对比。'}</p>
+          <p className="pt-1 text-[11px] text-slate-400">{L.analysis.budgetHelp}{budget.scope === '全部' ? L.analysis.budgetHelpAvg : L.analysis.budgetHelpMonth}</p>
         </div>
       )}
     </Card>
@@ -388,9 +390,10 @@ function BudgetCard({ budget, onSet, catRows, onSetCategory, catBudgets }: {
 /* ================= 页头组件 ================= */
 
 function MonthBar({ months, selected, onSelect }: { months: string[]; selected: string; onSelect: (m: string) => void }) {
+  const { L } = useI18n()
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      <button onClick={() => onSelect('')} className={monthChip(selected === '')}>全部</button>
+      <button onClick={() => onSelect('')} className={monthChip(selected === '')}>{L.common.all}</button>
       {months.map((m) => (
         <button key={m} onClick={() => onSelect(m)} className={monthChip(selected === m)}>{m}</button>
       ))}
@@ -424,6 +427,7 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
   budget: { monthly: number; monthExpense: number; monthCount: number; scope: string }
   onSetBudget: (v: number) => void
 }) {
+  const { L } = useI18n()
   const donut = useMemo(() => {
     const data = Object.entries(agg.byCategory)
       .map(([name, value]) => ({ name, value, itemStyle: { color: categoryDef(name).color } }))
@@ -461,17 +465,17 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
           <span className="text-lg">🏷️</span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold text-ink">
-              {labelBanner.count} 笔大额支出待标注，涉及 ¥{fmtMoney(labelBanner.sum)}
+              {L.analysis.bannerTitle(labelBanner.count, fmtMoney(labelBanner.sum))}
             </div>
             <div className="mt-0.5 text-xs text-ink-soft">
-              占总支出 {Math.round(labelBanner.share * 100)}%——它们现在被归在"其他支出"里。花一分钟告诉松鼠是什么，分析会准很多。
+              {L.analysis.bannerShare(Math.round(labelBanner.share * 100))}
             </div>
           </div>
           <button
             onClick={onStartLabeling}
             className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
           >
-            去标注 →
+            {L.analysis.bannerBtn}
           </button>
         </div>
       )}
@@ -489,22 +493,22 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
 
       {/* 总览卡 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard emoji="💵" label="收入" value={agg.income} diff={momDiff(agg.income, prev?.income)} color="#059669" />
-        <StatCard emoji="💸" label="支出" value={agg.expense} diff={momDiff(agg.expense, prev?.expense)} color="#4f46e5" />
-        <StatCard emoji={net >= 0 ? '💰' : '🫠'} label="结余" value={net} signed color={net >= 0 ? '#0d9488' : '#dc2626'} />
+        <StatCard emoji="💵" label={L.analysis.income} value={agg.income} diff={momDiff(agg.income, prev?.income)} color="#059669" />
+        <StatCard emoji="💸" label={L.analysis.expense} value={agg.expense} diff={momDiff(agg.expense, prev?.expense)} color="#4f46e5" />
+        <StatCard emoji={net >= 0 ? '💰' : '🫠'} label={L.analysis.balance} value={net} signed color={net >= 0 ? '#0d9488' : '#dc2626'} />
         <Card className="p-4">
-          <div className="text-xs text-ink-soft">结余率 / 笔数</div>
+          <div className="text-xs text-ink-soft">{L.analysis.rateLabel}</div>
           <div className="mt-1.5 text-xl font-bold text-ink">
             {agg.income > 0 ? `${Math.round((net / agg.income) * 100)}%` : '—'}
           </div>
-          <div className="mt-1 text-xs text-ink-soft">共 {agg.txnCount} 笔收支 · 夜间 {agg.nightCount} 笔</div>
+          <div className="mt-1 text-xs text-ink-soft">{L.analysis.statRows(agg.txnCount, agg.nightCount)}</div>
         </Card>
       </div>
 
       {/* 洞察 */}
       {insights.length > 0 && (
         <Card className="p-5">
-          <SectionTitle emoji="💡" title="洞察" desc="分析引擎读完你的账单后想说的话——每句都有数据依据。" />
+          <SectionTitle emoji="💡" title={L.analysis.insightTitle} desc={L.analysis.insightDesc} />
           <div className="grid gap-3 sm:grid-cols-2">
             {insights.map((ins) => <InsightCard key={ins.id} ins={ins} />)}
           </div>
@@ -514,16 +518,16 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
       {/* 构成图 */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <SectionTitle emoji="🍩" title="支出构成" />
+          <SectionTitle emoji="🍩" title={L.analysis.donutTitle} />
           {Object.keys(agg.byCategory).length > 0
             ? <Chart option={donut} height={300} />
-            : <p className="py-10 text-center text-sm text-ink-soft">还没有支出记录</p>}
+            : <p className="py-10 text-center text-sm text-ink-soft">{L.analysis.noExpense}</p>}
         </Card>
         <Card className="p-5">
-          <SectionTitle emoji="🌊" title="钱从哪来 → 到哪去" desc="线的粗细就是金额；内部转账已自动对冲。" />
+          <SectionTitle emoji="🌊" title={L.analysis.sankeyTitle} desc={L.analysis.sankeyDesc} />
           {sankey.links.length > 0
             ? <Chart option={sankeyOption(sankey)} height={300} />
-            : <p className="py-10 text-center text-sm text-ink-soft">数据还不够画出流向图</p>}
+            : <p className="py-10 text-center text-sm text-ink-soft">{L.analysis.noFlow}</p>}
         </Card>
       </div>
 
@@ -532,17 +536,17 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
         <div className="grid gap-4 lg:grid-cols-2">
           {incomes.length > 0 && (
             <Card className="p-5">
-              <SectionTitle emoji="💵" title="收入构成" desc={`共 ${incomes.length} 类来源 · ¥${fmtMoney(agg.income)}`} />
+              <SectionTitle emoji="💵" title={L.analysis.incomeTitle} desc={L.analysis.incomeDesc(incomes.length, fmtMoney(agg.income))} />
               <BreakdownList rows={incomes} total={agg.income} colors={['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5']} />
             </Card>
           )}
           {payMethods.length > 0 && (
             <Card className="p-5">
-              <SectionTitle emoji="💳" title="支付方式" desc="钱主要从哪个口袋出去" />
+              <SectionTitle emoji="💳" title={L.analysis.payTitle} desc={L.analysis.payDesc} />
               <BreakdownList rows={payMethods} total={agg.expense} colors={['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff', '#eef2ff']} />
               {payMethods.some((p) => p.name === '未标注') && (
                 <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
-                  「未标注」多为微信零钱或其他未记录支付方式的交易；银行渠道行已统一显示为银行名。
+                  {L.analysis.payNote}
                 </p>
               )}
             </Card>
@@ -553,7 +557,7 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
       {/* 趋势 */}
       {trend && (
         <Card className="p-5">
-          <SectionTitle emoji="📈" title="月度收支趋势" />
+          <SectionTitle emoji="📈" title={L.analysis.trendTitle} />
           <Chart option={trend} height={260} />
         </Card>
       )}
@@ -566,6 +570,7 @@ function BreakdownList({ rows, total, colors }: {
   total: number
   colors: string[]
 }) {
+  const { L } = useI18n()
   const top = rows.slice(0, 6)
   return (
     <div className="space-y-3">
@@ -574,7 +579,7 @@ function BreakdownList({ rows, total, colors }: {
           <div className="flex items-center justify-between text-xs">
             <span className="max-w-60 truncate font-medium text-ink">{r.name}</span>
             <span className="text-ink-soft">
-              {total > 0 ? `${Math.round((r.total / total) * 100)}% · ` : ''}<b className="text-ink">¥{fmtMoney(r.total)}</b> · {r.count} 笔
+              {total > 0 ? `${Math.round((r.total / total) * 100)}% · ` : ''}<b className="text-ink">¥{fmtMoney(r.total)}</b> · {L.analysis.countUnit(r.count)}
             </span>
           </div>
           <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -587,6 +592,7 @@ function BreakdownList({ rows, total, colors }: {
 }
 
 function InsightCard({ ins }: { ins: Insight }) {
+  const { L } = useI18n()
   const [open, setOpen] = useState(false)
   const styles = {
     good: { bar: '#10b981', bg: '#ecfdf5' },
@@ -602,7 +608,7 @@ function InsightCard({ ins }: { ins: Insight }) {
             <span className="text-sm font-bold text-ink">{ins.title}</span>
             {ins.group && (
               <span className="rounded bg-white/70 px-1.5 py-px text-[10px] font-semibold text-ink-soft ring-1 ring-slate-200/80">
-                {ins.group}
+                {L.analysis.insGroups[ins.group]}
               </span>
             )}
           </div>
@@ -613,7 +619,7 @@ function InsightCard({ ins }: { ins: Insight }) {
                 className="mt-1.5 text-[11px] font-medium text-brand-600 hover:underline"
                 onClick={() => setOpen(!open)}
               >
-                {open ? '收起清单 ▴' : '查看对冲清单 ▾'}
+                {open ? L.analysis.collapseList : L.analysis.viewList}
               </button>
               {open && (
                 <div className="mt-2 space-y-1.5 rounded-lg bg-white/80 p-2.5">
@@ -624,7 +630,6 @@ function InsightCard({ ins }: { ins: Insight }) {
                       <span className="shrink-0 font-semibold text-ink">¥{it.amount.toLocaleString('zh-CN')}</span>
                     </div>
                   ))}
-                  {ins.title.includes('44') || ins.title.includes('10') ? null : null}
                 </div>
               )}
             </>
@@ -648,13 +653,14 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
   catTrend: { months: string[]; series: Array<{ name: string; data: number[]; color: string }> } | null
   shopTrend: { months: string[]; series: Array<{ name: string; data: number[]; color: string }> } | null
 }) {
+  const { lang, L } = useI18n()
   const [expanded, setExpanded] = useState<string | null>(catDetails[0]?.name ?? null)
 
   const weekday = useMemo(() => {
     const sums = weekdaySums(monthTx)
     if (sums.every((v) => v === 0)) return null
-    return { sums, max: Math.max(...sums), busiest: WEEKDAY_LABELS[sums.indexOf(Math.max(...sums))] }
-  }, [monthTx])
+    return { sums, max: Math.max(...sums), busiest: WEEKDAY_LABELS[lang][sums.indexOf(Math.max(...sums))] }
+  }, [monthTx, lang])
 
   const buckets = useMemo(() => amountBuckets(monthTx), [monthTx])
   const catMoM = useMemo(() => (prev ? categoryRows(agg, prev) : []), [agg, prev])
@@ -670,8 +676,8 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
         <Card className="p-5">
           <SectionTitle
             emoji="🛍️"
-            title="电商平台消费"
-            desc="京东/淘宝天猫/拼多多/美团/饿了么的消费没有独立账单，但已从支付渠道账单的商户信息中自动识别汇总。"
+            title={L.analysis.shopCardTitle}
+            desc={L.analysis.shopCardDesc}
           />
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {shopping.map((s) => (
@@ -681,7 +687,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                   <span className="text-sm font-bold text-brand-600">¥{fmtMoney(s.total)}</span>
                 </div>
                 <div className="mt-1 text-xs text-ink-soft">
-                  {s.count} 笔 · 占支出 {Math.round(s.share * 100)}% · 主消费：{s.topMerchants[0]?.name ?? '—'}
+                  {L.analysis.shopItem(s.count, Math.round(s.share * 100), s.topMerchants[0]?.name ?? '—')}
                 </div>
               </div>
             ))}
@@ -694,15 +700,15 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
         <Card className="p-5">
           <SectionTitle
             emoji="🔁"
-            title={`固定支出 · 月均 ¥${fmtMoney(monthlyFixed)}`}
-            desc="同一收款方连续多月、金额相近的支出（房租、订阅等），跨全部月份识别。"
+            title={L.analysis.fixedTitle(fmtMoney(monthlyFixed))}
+            desc={L.analysis.fixedDesc}
           />
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {recurring.slice(0, 6).map((r) => (
               <div key={r.counterparty} className="rounded-xl bg-slate-50 px-3.5 py-3">
                 <div className="truncate text-sm font-semibold text-ink" title={r.counterparty}>{r.counterparty}</div>
                 <div className="mt-1 text-xs text-ink-soft">
-                  月均 <b className="text-ink">¥{fmtMoney(r.avgAmount)}</b> · 连续 {r.months.length} 个月 · {r.category}
+                  {L.analysis.budgetAvg} <b className="text-ink">¥{fmtMoney(r.avgAmount)}</b> · {L.mining.monthsRun(r.months.length)} · {r.category}
                 </div>
               </div>
             ))}
@@ -712,7 +718,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
 
       {/* 分类深析 */}
       <Card className="p-5">
-        <SectionTitle emoji="🍽️" title="分类深析" desc="点击展开每个分类的商户构成、单笔结构、环比与解读。" />
+        <SectionTitle emoji="🍽️" title={L.analysis.catDeepTitle} desc={L.analysis.catDeepDesc} />
         <div className="space-y-2">
           {catDetails.map((c) => {
             const def = categoryDef(c.name)
@@ -740,21 +746,21 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                       </p>
                     )}
                     <div className="grid gap-2.5 sm:grid-cols-4">
-                      <MiniStat label="笔数" value={`${c.count} 笔`} />
-                      <MiniStat label="单笔均值" value={`¥${fmtMoney(c.avg)}`} />
+                      <MiniStat label={L.analysis.statCount} value={L.analysis.countUnit(c.count)} />
+                      <MiniStat label={L.analysis.statAvg} value={`¥${fmtMoney(c.avg)}`} />
                       <MiniStat
-                        label="最大单笔"
+                        label={L.analysis.statMax}
                         value={c.maxTx ? `¥${fmtMoney(c.maxTx.amount)}` : '—'}
                         sub={c.maxTx ? `${c.maxTx.time.slice(5, 10)} ${c.maxTx.counterparty || c.maxTx.item}`.slice(0, 18) : undefined}
                       />
                       <MiniStat
-                        label="环比"
+                        label={L.analysis.statMoM}
                         value={c.momPct === null ? '—' : `${c.momPct > 0 ? '↑' : '↓'}${Math.abs(Math.round(c.momPct * 100))}%`}
                       />
                     </div>
                     {c.topMerchants.length > 0 && (
                       <div className="mt-3">
-                        <div className="mb-1.5 text-xs font-semibold text-ink-soft">主要商户</div>
+                        <div className="mb-1.5 text-xs font-semibold text-ink-soft">{L.analysis.topMerchants}</div>
                         <div className="space-y-1.5">
                           {c.topMerchants.map((m) => (
                             <div key={m.name} className="flex items-center gap-2.5 text-xs">
@@ -762,7 +768,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
                                 <div className="h-full rounded-full" style={{ width: `${(m.total / c.topMerchants[0].total) * 100}%`, backgroundColor: def.color }} />
                               </div>
-                              <span className="w-20 text-right text-ink-soft">¥{fmtMoney(m.total)} · {m.count}笔</span>
+                              <span className="w-20 text-right text-ink-soft">¥{fmtMoney(m.total)} · {L.analysis.countUnit(m.count)}</span>
                             </div>
                           ))}
                         </div>
@@ -779,17 +785,17 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
       {/* 消费习惯 */}
       {(weekday || buckets.some((b) => b.count > 0)) && (
         <Card className="p-5">
-          <SectionTitle emoji="🧭" title="消费习惯" desc="什么时候花钱、怎么个花法，规律都藏在里面。" />
+          <SectionTitle emoji="🧭" title={L.analysis.habitTitle} desc={L.analysis.habitDesc} />
           <div className="grid gap-6 lg:grid-cols-2">
             {weekday && (
               <div>
                 <div className="mb-3 text-xs text-ink-soft">
-                  周内规律 · 最能花的一天是 <b className="text-ink">{weekday.busiest}</b>
+                  {L.analysis.weekdayTop(weekday.busiest)}
                 </div>
                 <div className="space-y-2">
                   {weekday.sums.map((v, i) => (
                     <div key={i} className="flex items-center gap-2.5 text-xs">
-                      <span className="w-8 shrink-0 text-ink-soft">{WEEKDAY_LABELS[i]}</span>
+                      <span className="w-8 shrink-0 text-ink-soft">{WEEKDAY_LABELS[lang][i]}</span>
                       <div className="h-5 flex-1 overflow-hidden rounded-md bg-slate-100">
                         <div
                           className={`h-full rounded-md ${i >= 5 ? 'bg-rose-300' : 'bg-brand-300'}`}
@@ -799,13 +805,13 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                       <span className="w-20 shrink-0 text-right font-semibold text-ink">{v > 0 ? `¥${fmtMoney(v)}` : '—'}</span>
                     </div>
                   ))}
-                  <p className="pt-1 text-[11px] text-slate-400">红色为周末</p>
+                  <p className="pt-1 text-[11px] text-slate-400">{L.analysis.weekendNote}</p>
                 </div>
               </div>
             )}
             {buckets.some((b) => b.count > 0) && (
               <div>
-                <div className="mb-3 text-xs text-ink-soft">单笔金额分布 · 共 {buckets.reduce((s, b) => s + b.count, 0)} 笔支出</div>
+                <div className="mb-3 text-xs text-ink-soft">{L.analysis.bucketsTitle(buckets.reduce((s, b) => s + b.count, 0))}</div>
                 <div className="space-y-3">
                   {buckets.map((b, i) => {
                     const maxCount = Math.max(...buckets.map((x) => x.count), 1)
@@ -813,8 +819,8 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                     return (
                       <div key={b.name}>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-ink">{b.name}</span>
-                          <span className="text-ink-soft">{b.count} 笔 · <b className="text-ink">¥{fmtMoney(b.sum)}</b></span>
+                          <span className="font-medium text-ink">{[L.analysis.smallB, L.analysis.midB, L.analysis.bigB][i]}</span>
+                          <span className="text-ink-soft">{L.analysis.countUnit(b.count)} · <b className="text-ink">¥{fmtMoney(b.sum)}</b></span>
                         </div>
                         <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
                           <div className="h-full rounded-full" style={{ width: `${(b.count / maxCount) * 100}%`, backgroundColor: colors[i] }} />
@@ -832,7 +838,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
       {/* 分类月度趋势 */}
       {catTrend && (
         <Card className="p-5">
-          <SectionTitle emoji="📉" title="分类月度趋势" desc="Top 5 支出类目的逐月走势——谁在悄悄上涨一目了然。" />
+          <SectionTitle emoji="📉" title={L.analysis.catTrendTitle} desc={L.analysis.catTrendDesc} />
           <Chart option={multiLineOption(catTrend.months, catTrend.series, true)} height={260} />
         </Card>
       )}
@@ -840,7 +846,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
       {/* 电商平台月度趋势 */}
       {shopTrend && shopping.length > 0 && (
         <Card className="p-5">
-          <SectionTitle emoji="🛍️" title="电商平台月度趋势" desc="各平台的月度消费堆叠。" />
+          <SectionTitle emoji="🛍️" title={L.analysis.shopTrendTitle} desc={L.analysis.shopTrendDesc} />
           <Chart option={stackedBarOption(shopTrend.months, shopTrend.series, true)} height={240} />
         </Card>
       )}
@@ -848,15 +854,15 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
       {/* 分类环比表 */}
       {catMoM.length > 0 && (
         <Card className="p-5">
-          <SectionTitle emoji="📊" title="分类环比" desc="看哪些类目在悄悄变化。" />
+          <SectionTitle emoji="📊" title={L.analysis.catMoMTitle} desc={L.analysis.catMoMDesc} />
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-ink-soft">
-                  <th className="py-2 pr-2 font-medium">分类</th>
-                  <th className="py-2 pr-2 text-right font-medium">本期</th>
-                  <th className="py-2 pr-2 text-right font-medium">上期</th>
-                  <th className="py-2 pr-2 text-right font-medium">变化</th>
+                  <th className="py-2 pr-2 font-medium">{L.common.category}</th>
+                  <th className="py-2 pr-2 text-right font-medium">{L.analysis.thCurrent}</th>
+                  <th className="py-2 pr-2 text-right font-medium">{L.analysis.thPrev}</th>
+                  <th className="py-2 pr-2 text-right font-medium">{L.analysis.thChange}</th>
                 </tr>
               </thead>
               <tbody>
@@ -871,7 +877,7 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
                     <td className="py-2 pr-2 text-right text-ink-soft">{r.previous !== undefined ? `¥${fmtMoney(r.previous)}` : '—'}</td>
                     <td className="py-2 pr-2 text-right">
                       {r.previous === undefined ? (
-                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-600">新增</span>
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-600">{L.analysis.newCat}</span>
                       ) : r.diffPct === null ? (
                         <span className="text-ink-soft">—</span>
                       ) : (
@@ -904,20 +910,21 @@ function MiniStat({ label, value, sub }: { label: string; value: string; sub?: s
 /* ================= 深度挖掘卡片 ================= */
 
 function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMining>; expense: number }) {
+  const { L } = useI18n()
   const { subscriptions, subscriptionMonthlyTotal, lattes, latteTotal, selfInvest, thrifty, takeawayTotal, emotional } = mining
   const hasAny =
     subscriptions.length > 0 || lattes.length > 0 || selfInvest.total > 0 ||
     emotional.night.count > 0 || emotional.monthStart.count > 0 || emotional.monthEnd.count > 0
   if (!hasAny) return null
 
-  const yearCost = (monthly: number) => `折算一年 ¥${fmtMoney(monthly * 12)}`
+  const yearCost = (monthly: number) => L.mining.perYear(fmtMoney(monthly * 12))
 
   return (
     <Card className="p-5 ring-1 ring-brand-100">
       <SectionTitle
         emoji="⛏️"
-        title="深度挖掘"
-        desc="账单背后容易被忽视的地方——每一条都来自你的真实数据。"
+        title={L.analysis.miningTitle}
+        desc={L.analysis.miningDesc}
       />
       <div className="space-y-4">
         {/* 扣费刺客 */}
@@ -925,21 +932,21 @@ function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMin
           <MiningBlock
             tone="danger"
             icon="🗡️"
-            title={`扣费刺客 · 每月悄悄扣走 ¥${fmtMoney(subscriptionMonthlyTotal)}`}
+            title={L.mining.subAssassin(fmtMoney(subscriptionMonthlyTotal))}
             subtitle={yearCost(subscriptionMonthlyTotal)}
           >
             {subscriptions.slice(0, 6).map((s) => (
               <div key={s.name} className="flex items-center gap-2.5 text-xs">
                 <span className="w-40 truncate font-medium text-ink" title={s.name}>
-                  {s.name}{s.autoRenew && <span className="ml-1 rounded bg-rose-100 px-1 py-px text-[10px] text-rose-600">自动续费</span>}
+                  {s.name}{s.autoRenew && <span className="ml-1 rounded bg-rose-100 px-1 py-px text-[10px] text-rose-600">{L.mining.autoRenew}</span>}
                 </span>
                 <span className="text-ink-soft">{s.category}</span>
-                <span className="ml-auto shrink-0 text-ink-soft">连续 {s.months} 个月 · 最近 {s.lastDate}</span>
-                <span className="w-20 shrink-0 text-right font-bold text-ink">¥{fmtMoney(s.monthlyAvg)}/月</span>
+                <span className="ml-auto shrink-0 text-ink-soft">{L.mining.monthsRun(s.months)} · {L.mining.lastDate(s.lastDate)}</span>
+                <span className="w-20 shrink-0 text-right font-bold text-ink">¥{fmtMoney(s.monthlyAvg)}{L.mining.perMonth}</span>
               </div>
             ))}
             <p className="pt-1 text-[11px] leading-relaxed text-slate-400">
-              周期性小额扣费，单次不起眼、全年加起来 ¥{fmtMoney(subscriptionMonthlyTotal * 12)}。不用的会员，现在去关还来得及。
+              {L.mining.subNote(fmtMoney(subscriptionMonthlyTotal * 12))}
             </p>
           </MiningBlock>
         )}
@@ -949,8 +956,8 @@ function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMin
           <MiningBlock
             tone="warn"
             icon="☕"
-            title={`拿铁因子 · 高频小额累计 ¥${fmtMoney(latteTotal)}`}
-            subtitle={`单笔 ≤¥50 且 ≥4 次的同一消费`}
+            title={L.mining.latteTitle(fmtMoney(latteTotal))}
+            subtitle={L.mining.latteSub}
           >
             {lattes.slice(0, 5).map((l) => (
               <div key={l.name} className="flex items-center gap-2.5 text-xs">
@@ -958,12 +965,12 @@ function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMin
                 <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full rounded-full bg-amber-400" style={{ width: `${(l.total / lattes[0].total) * 100}%` }} />
                 </div>
-                <span className="shrink-0 text-ink-soft">{l.count} 次 · 均 ¥{fmtMoney(l.avg)}</span>
+                <span className="shrink-0 text-ink-soft">{L.mining.latteRow(l.count, fmtMoney(l.avg))}</span>
                 <span className="w-20 shrink-0 text-right font-bold text-ink">¥{fmtMoney(l.total)}</span>
               </div>
             ))}
             <p className="pt-1 text-[11px] leading-relaxed text-slate-400">
-              每次 ¥{fmtMoney(lattes[0].avg)} 不多，但 {lattes[0].count} 次加起来就是 ¥{fmtMoney(lattes[0].total)}——这就是经典的"拿铁因子"。
+              {L.mining.latteNote(fmtMoney(lattes[0].avg), lattes[0].count, fmtMoney(lattes[0].total))}
             </p>
           </MiningBlock>
         )}
@@ -973,29 +980,33 @@ function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMin
           <MiningBlock
             tone="good"
             icon="🌱"
-            title="被忽略的好消费"
-            subtitle="花在自己身上的钱，值得被看见"
+            title={L.mining.goodTitle}
+            subtitle={L.mining.goodSub}
           >
             <div className="grid gap-2.5 sm:grid-cols-3">
               {selfInvest.total > 0 && (
                 <div className="rounded-xl bg-emerald-50 px-3.5 py-3">
-                  <div className="text-xs font-semibold text-emerald-700">📚 投资自己</div>
+                  <div className="text-xs font-semibold text-emerald-700">{L.mining.selfInvest}</div>
                   <div className="mt-1 text-lg font-bold text-emerald-800">¥{fmtMoney(selfInvest.total)}</div>
-                  <div className="mt-0.5 text-[11px] text-emerald-600">{selfInvest.categories.join(' · ')} · {selfInvest.count} 笔{expense > 0 ? ` · 占支出 ${Math.round((selfInvest.total / expense) * 100)}%` : ''}</div>
+                  <div className="mt-0.5 text-[11px] text-emerald-600">
+                    {selfInvest.categories.join(' · ')} · {L.analysis.countUnit(selfInvest.count)}{expense > 0 ? ` · ${L.analysis.shareOfExpense(Math.round((selfInvest.total / expense) * 100))}` : ''}
+                  </div>
                 </div>
               )}
               {thrifty.total > 0 && (
                 <div className="rounded-xl bg-teal-50 px-3.5 py-3">
-                  <div className="text-xs font-semibold text-teal-700">🛒 省钱型消费</div>
+                  <div className="text-xs font-semibold text-teal-700">{L.mining.thrifty}</div>
                   <div className="mt-1 text-lg font-bold text-teal-800">¥{fmtMoney(thrifty.total)}</div>
-                  <div className="mt-0.5 text-[11px] text-teal-600">超市/生鲜自购 {thrifty.count} 笔{takeawayTotal > 0 ? ` · 同期外卖 ¥${fmtMoney(takeawayTotal)}` : ''}</div>
+                  <div className="mt-0.5 text-[11px] text-teal-600">
+                    {L.mining.thriftyBase} {L.analysis.countUnit(thrifty.count)}{takeawayTotal > 0 ? ` · ${L.mining.takeawayCmp(fmtMoney(takeawayTotal))}` : ''}
+                  </div>
                 </div>
               )}
               {takeawayTotal > 0 && (
                 <div className="rounded-xl bg-slate-50 px-3.5 py-3">
-                  <div className="text-xs font-semibold text-slate-500">🛵 对照：外卖餐饮</div>
+                  <div className="text-xs font-semibold text-slate-500">{L.mining.takeawayTitle}</div>
                   <div className="mt-1 text-lg font-bold text-slate-700">¥{fmtMoney(takeawayTotal)}</div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{thrifty.total > 0 ? `自购食材每花 ¥1，外卖花了 ¥${(takeawayTotal / Math.max(thrifty.total, 0.01)).toFixed(1)}` : '多为解决型就餐'}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{thrifty.total > 0 ? L.mining.takeawayRatio((takeawayTotal / Math.max(thrifty.total, 0.01)).toFixed(1)) : L.mining.takeawayFallback}</div>
                 </div>
               )}
             </div>
@@ -1007,21 +1018,21 @@ function DeepMiningCard({ mining, expense }: { mining: ReturnType<typeof deepMin
           <MiningBlock
             tone="info"
             icon="🌙"
-            title="特定时刻的情绪消费"
-            subtitle="深夜、月初、月底的弹性支出——那时候花的钱，往往不是刚需"
+            title={L.mining.emoTitle}
+            subtitle={L.mining.emoSub}
           >
             <div className="grid gap-2.5 sm:grid-cols-3">
-              <WindowChip label="🌙 深夜（23:00–6:00）" win={emotional.night} color="indigo" />
-              <WindowChip label="🌅 月初（1–3号）" win={emotional.monthStart} color="sky" />
-              <WindowChip label="🌇 月底（25号后）" win={emotional.monthEnd} color="rose" />
+              <WindowChip label={L.mining.winNight} win={emotional.night} color="indigo" />
+              <WindowChip label={L.mining.winMonthStart} win={emotional.monthStart} color="sky" />
+              <WindowChip label={L.mining.winMonthEnd} win={emotional.monthEnd} color="rose" />
             </div>
             {(emotional.night.examples.length > 0 || emotional.monthStart.examples.length > 0) && (
               <div className="mt-2.5 space-y-1 text-[11px] leading-relaxed text-slate-400">
                 {emotional.night.examples.slice(0, 2).map((e, i) => (
-                  <div key={'n' + i}>深夜：{e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
+                  <div key={'n' + i}>{L.mining.nightTag}: {e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
                 ))}
                 {emotional.monthStart.examples.slice(0, 1).map((e, i) => (
-                  <div key={'s' + i}>月初：{e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
+                  <div key={'s' + i}>{L.mining.monthStartTag}: {e.name} ¥{fmtMoney(e.amount)}（{e.date}）</div>
                 ))}
               </div>
             )}
@@ -1057,6 +1068,7 @@ function MiningBlock({ tone, icon, title, subtitle, children }: {
 }
 
 function WindowChip({ label, win, color }: { label: string; win: { total: number; count: number }; color: 'indigo' | 'sky' | 'rose' }) {
+  const { L } = useI18n()
   const colors = {
     indigo: 'bg-indigo-50 text-indigo-700 [&_b]:text-indigo-800',
     sky: 'bg-sky-50 text-sky-700 [&_b]:text-sky-800',
@@ -1065,8 +1077,8 @@ function WindowChip({ label, win, color }: { label: string; win: { total: number
   return (
     <div className={`rounded-xl px-3.5 py-3 ${colors}`}>
       <div className="text-xs font-semibold">{label}</div>
-      <div className="mt-1 text-lg font-bold">{win.count > 0 ? `¥${fmtMoney(win.total)}` : '无'}</div>
-      <div className="mt-0.5 text-[11px] opacity-70">{win.count > 0 ? `${win.count} 笔弹性支出` : '这个时段很克制'}</div>
+      <div className="mt-1 text-lg font-bold">{win.count > 0 ? `¥${fmtMoney(win.total)}` : L.mining.none}</div>
+      <div className="mt-0.5 text-[11px] opacity-70">{win.count > 0 ? L.mining.winCount(win.count) : L.mining.winCalm}</div>
     </div>
   )
 }
@@ -1093,6 +1105,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
 }) {
   const setCorrection = useStore((s) => s.setCorrection)
   const selectedMonth = useStore((s) => s.selectedMonth)
+  const { L } = useI18n()
   const [filter, setFilter] = useState<TxFilter>({ month: '', platform: '', category: '', direction: '', flag: '', search: '' })
   const [sortBy, setSortBy] = useState<'time' | 'amount'>('time')
   const [limit, setLimit] = useState(60)
@@ -1115,20 +1128,20 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
   }, [processed, filter, sortBy, onlyQueue, queueIds, selectedMonth])
 
   const exportCSV = () => {
-    const header = ['时间', '平台', '交易对方', '商品', '分类', '收/支', '金额', '支付方式', '状态', '标记']
-    const flagLabel: Record<string, string> = { internal: '内部转账', repayment: '信用还款', refund: '退款' }
+    const header = [L.common.time, L.common.platform, L.common.counterparty, L.common.item, L.common.category, L.common.direction, L.common.amount, L.common.payMethod, L.common.status, L.common.flag]
+    const flagLabel: Record<string, string> = { internal: L.common.flags.internal, repayment: L.common.flags.repayment, refund: L.common.flags.refund }
     const lines = filtered.map((t) => [
       t.time,
       platformName(t.platform),
       t.counterparty, t.item, t.category,
-      t.direction === 'in' ? '收入' : t.direction === 'out' ? '支出' : '中性',
+      t.direction === 'in' ? L.analysis.dirInShort : t.direction === 'out' ? L.analysis.dirOutShort : L.analysis.dirNeutralShort,
       String(t.amount), t.payMethod, t.status,
       t.transferFlag ? flagLabel[t.transferFlag] : '',
     ])
     const csv = '\ufeff' + [header, ...lines]
       .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
       .join('\n')
-    downloadTextFile(`交易记录_${filtered.length}笔.csv`, csv, 'text/csv;charset=utf-8')
+    downloadTextFile(`transactions_${filtered.length}.csv`, csv, 'text/csv;charset=utf-8')
   }
 
   const selectCls = 'rounded-lg border-0 bg-slate-100 px-2.5 py-1.5 text-sm text-ink outline-none'
@@ -1143,8 +1156,8 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
         >
           <span className="text-lg">🏷️</span>
           <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
-            {labelCount} 笔大额支出待标注
-            <span className="ml-2 font-normal text-ink-soft">标注后分析更准</span>
+            {L.analysis.labelEntry(labelCount)}
+            <span className="ml-2 font-normal text-ink-soft">{L.guide.f2d}</span>
           </span>
           <span className="text-brand-600">→</span>
         </button>
@@ -1155,13 +1168,13 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
         <Card className="border-l-4 border-l-amber-400 p-5">
           <div className="flex items-center gap-2">
             <span className="text-lg">🔍</span>
-            <h3 className="text-base font-bold text-ink">{queue.length} 笔交易待确认</h3>
+            <h3 className="text-base font-bold text-ink">{L.analysis.queueTitle(queue.length)}</h3>
           </div>
-          <p className="mt-1 text-xs text-ink-soft">这些可能是转账/还款也可能是正常消费，点一下标记真实性质，统计立刻更准。</p>
+          <p className="mt-1 text-xs text-ink-soft">{L.analysis.queueDesc}</p>
           <ul className="mt-2 space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-ink-soft">
-            <li>💳 <b>信用还款</b>：白条/花呗/信用卡的消费在购买当时已计入支出，还款只是还钱，选它可避免重复计算。</li>
-            <li>✅ <b>是支出/是收入</b>：这笔钱是第一次计入（比如直接从银行卡付的一笔消费），选它。</li>
-            <li>拿不准就先跳过——它仍会按当前规则统计，随时可以在下面表格里改。</li>
+            <li>{L.analysis.qExplain1}</li>
+            <li>{L.analysis.qExplain2}</li>
+            <li>{L.analysis.qExplain3}</li>
           </ul>
           <div className="mt-4 space-y-3">
             {queue.map((tx) => (
@@ -1170,7 +1183,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
                   <PlatformBadge platform={tx.platform} />
                   <span className="text-xs text-ink-soft">{fmtTxTime(tx)}</span>
                   <span className="min-w-0 flex-1 truncate font-medium text-ink">
-                    {tx.counterparty || tx.item || '未知商户'}
+                    {tx.counterparty || tx.item || L.common.unknownMerchant}
                     <span className="ml-1.5 text-xs font-normal text-ink-soft">{tx.item}</span>
                   </span>
                   <span className={`shrink-0 text-base font-bold ${tx.direction === 'in' ? 'text-emerald-600' : 'text-brand-600'}`}>
@@ -1178,11 +1191,11 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'internal' })}>🔁 内部转账</button>
-                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'repayment' })}>💳 信用还款</button>
-                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'refund' })}>↩️ 退款</button>
+                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'internal' })}>{L.analysis.fInternal}</button>
+                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'repayment' })}>{L.analysis.fRepay}</button>
+                  <button className={chipCls} onClick={() => setCorrection(tx.id, { transferFlag: 'refund' })}>{L.analysis.fRefund}</button>
                   <button className={chipPrimaryCls} onClick={() => setCorrection(tx.id, { transferFlag: 'normal' })}>
-                    ✅ {tx.direction === 'in' ? '是收入' : '是支出'}
+                    ✅ {tx.direction === 'in' ? L.analysis.fNormalIn : L.analysis.fNormalOut}
                   </button>
                 </div>
               </div>
@@ -1194,45 +1207,45 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
       {/* 筛选与表格 */}
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-base font-bold text-ink">📋 交易记录</h3>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-soft">{filtered.length} 条</span>
+          <h3 className="text-base font-bold text-ink">{L.analysis.txTitle}</h3>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-soft">{L.analysis.txRows(filtered.length)}</span>
           {correctionsCount > 0 && (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600">已手工修正 {correctionsCount} 条</span>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600">{L.analysis.txFixed(correctionsCount)}</span>
           )}
           <button
             onClick={exportCSV}
             className="ml-auto rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-slate-200 transition-all hover:ring-brand-300"
           >
-            ⬇️ 导出筛选结果 CSV
+            {L.analysis.txExport}
           </button>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select className={selectCls} value={filter.month} onChange={(e) => setFilter({ ...filter, month: e.target.value })}>
-            <option value="">全部月份{selectedMonth ? '' : '（跟随上方选择）'}</option>
+            <option value="">{selectedMonth ? L.common.all : L.analysis.filters.month}</option>
             {months.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
           <select className={selectCls} value={filter.platform} onChange={(e) => setFilter({ ...filter, platform: e.target.value })}>
-            <option value="">全部平台</option>
-            <option value="wechat">微信</option>
-            <option value="alipay">支付宝</option>
+            <option value="">{L.analysis.filters.platform}</option>
+            <option value="wechat">{L.common.wechat}</option>
+            <option value="alipay">{L.common.alipay}</option>
             {Object.entries(BANK_META).map(([code, m]) => (
               <option key={code} value={code}>{m.name}</option>
             ))}
           </select>
           <select className={selectCls} value={filter.direction} onChange={(e) => setFilter({ ...filter, direction: e.target.value })}>
-            <option value="">收+支</option>
-            <option value="out">仅支出</option>
-            <option value="in">仅收入</option>
-            <option value="neutral">仅中性</option>
+            <option value="">{L.analysis.filters.dirAll}</option>
+            <option value="out">{L.analysis.filters.dirOut}</option>
+            <option value="in">{L.analysis.filters.dirIn}</option>
+            <option value="neutral">{L.analysis.filters.dirNeutral}</option>
           </select>
           <select className={selectCls} value={filter.flag} onChange={(e) => setFilter({ ...filter, flag: e.target.value })}>
-            <option value="">全部性质</option>
-            <option value="normal">正常收支</option>
-            <option value="transfer">转账/还款</option>
+            <option value="">{L.analysis.filters.natureAll}</option>
+            <option value="normal">{L.analysis.filters.natureNormal}</option>
+            <option value="transfer">{L.analysis.filters.natureTransfer}</option>
           </select>
           <select className={selectCls} value={filter.category} onChange={(e) => setFilter({ ...filter, category: e.target.value })}>
-            <option value="">全部分类</option>
+            <option value="">{L.analysis.filters.catAll}</option>
             {ALL_CATEGORIES.filter((c) => c.kind === 'expense' || c.kind === 'income').map((c) => (
               <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
             ))}
@@ -1240,18 +1253,18 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
           <input
             value={filter.search}
             onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-            placeholder="🔍 搜索商户 / 商品 / 支付方式"
+            placeholder={L.common.search}
             className="min-w-44 flex-1 rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm outline-none ring-1 ring-transparent transition-shadow focus:bg-white focus:ring-brand-400"
           />
           <button
             onClick={() => setSortBy(sortBy === 'time' ? 'amount' : 'time')}
             className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-slate-200"
           >
-            ⇅ {sortBy === 'time' ? '按时间' : '按金额'}
+            {sortBy === 'time' ? L.analysis.filters.byTime : L.analysis.filters.byAmount}
           </button>
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-soft">
             <input type="checkbox" checked={onlyQueue} onChange={(e) => setOnlyQueue(e.target.checked)} className="accent-brand-500" />
-            只看待确认
+            {L.common.onlyPending}
           </label>
         </div>
 
@@ -1259,13 +1272,13 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
           <table className="w-full min-w-170 text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-ink-soft">
-                <th className="py-2 pr-2 font-medium">时间</th>
-                <th className="py-2 pr-2 font-medium">平台</th>
-                <th className="py-2 pr-2 font-medium">商户/事项</th>
-                <th className="py-2 pr-2 font-medium">分类</th>
-                <th className="py-2 pr-2 font-medium">性质</th>
-                <th className="py-2 pr-2 font-medium">支付方式</th>
-                <th className="py-2 pr-2 text-right font-medium">金额</th>
+                <th className="py-2 pr-2 font-medium">{L.common.time}</th>
+                <th className="py-2 pr-2 font-medium">{L.common.platform}</th>
+                <th className="py-2 pr-2 font-medium">{L.common.merchant}</th>
+                <th className="py-2 pr-2 font-medium">{L.common.category}</th>
+                <th className="py-2 pr-2 font-medium">{L.common.nature}</th>
+                <th className="py-2 pr-2 font-medium">{L.common.payMethod}</th>
+                <th className="py-2 pr-2 text-right font-medium">{L.common.amount}</th>
               </tr>
             </thead>
             <tbody>
@@ -1286,13 +1299,12 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
                       value={tx.category}
                       onChange={(e) => setCorrection(tx.id, { category: e.target.value })}
                     >
-                      <optgroup label="支出">
+                      <optgroup label={L.analysis.expense}>
                         {ALL_CATEGORIES.filter((c) => c.kind === 'expense').map((c) => (
                           <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
                         ))}
                       </optgroup>
-                      <optgroup label="收入">
-                        {ALL_CATEGORIES.filter((c) => c.kind === 'income').map((c) => (
+                      <optgroup label={L.analysis.income}>                        {ALL_CATEGORIES.filter((c) => c.kind === 'income').map((c) => (
                           <option key={c.name} value={c.name}>{c.emoji} {c.name}</option>
                         ))}
                       </optgroup>
@@ -1302,7 +1314,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
                     {needsReview(tx) ? (
                       <button className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-200"
                         onClick={() => setCorrection(tx.id, { transferFlag: 'normal' })}>
-                        待确认→是{tx.direction === 'in' ? '收入' : '支出'}
+                        {L.analysis.reviewChip(tx.direction === 'in' ? L.analysis.dirInShort : L.analysis.dirOutShort)}
                       </button>
                     ) : (
                       <FlagChip tx={tx} />
@@ -1321,12 +1333,12 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
           <div className="mt-3 text-center">
             <button className="rounded-lg bg-slate-100 px-4 py-1.5 text-sm text-ink-soft transition-colors hover:bg-slate-200"
               onClick={() => setLimit(limit + 100)}>
-              加载更多（剩 {filtered.length - limit} 条）
+              {L.analysis.loadMore(filtered.length - limit)}
             </button>
           </div>
         )}
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-          💡 灰色行不参与收支统计（内部转账/还款/退款/中性交易）；点击分类下拉可直接修改，修正会被永久记住。
+          {L.analysis.txHint}
         </p>
       </Card>
     </div>
@@ -1349,6 +1361,7 @@ function StatCard({ emoji, label, value, diff, signed = false, color }: {
   signed?: boolean
   color: string
 }) {
+  const { L } = useI18n()
   return (
     <Card className="p-4">
       <div className="text-xs text-ink-soft">{emoji} {label}</div>
@@ -1357,7 +1370,7 @@ function StatCard({ emoji, label, value, diff, signed = false, color }: {
       </div>
       {diff && diff.pct !== null && (
         <div className={`mt-1 text-xs ${diff.dir === 'up' ? 'text-brand-600' : diff.dir === 'down' ? 'text-emerald-600' : 'text-ink-soft'}`}>
-          {diff.dir === 'up' ? '↑' : diff.dir === 'down' ? '↓' : '～'}{Math.abs(Math.round(diff.pct))}% 环比
+          {diff.dir === 'up' ? '↑' : diff.dir === 'down' ? '↓' : '～'}{L.analysis.momPct(Math.abs(Math.round(diff.pct)))}
         </div>
       )}
     </Card>

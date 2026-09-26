@@ -6,16 +6,18 @@ import { GuidePage } from './pages/GuidePage'
 import { AnalysisPage } from './pages/AnalysisPage'
 import { CardPage } from './pages/CardPage'
 import { PrivacyPage } from './pages/PrivacyPage'
+import { useI18n } from './i18n'
 
-const NAV: Array<{ key: Route; emoji: string; label: string; needData?: boolean }> = [
-  { key: 'guide', emoji: '📥', label: '引导' },
-  { key: 'analysis', emoji: '📊', label: '账单分析', needData: true },
-  { key: 'card', emoji: '🐾', label: '报告卡片', needData: true },
-  { key: 'privacy', emoji: '🔒', label: '隐私' },
+const NAV: Array<{ key: Route; emoji: string; labelKey: 'guide' | 'analysis' | 'card' | 'privacy'; needData?: boolean }> = [
+  { key: 'guide', emoji: '📥', labelKey: 'guide' },
+  { key: 'analysis', emoji: '📊', labelKey: 'analysis', needData: true },
+  { key: 'card', emoji: '🐾', labelKey: 'card', needData: true },
+  { key: 'privacy', emoji: '🔒', labelKey: 'privacy' },
 ]
 
 export default function App() {
   const route = useHashRoute()
+  const { lang, setLang, L } = useI18n()
   const transactions = useStore((s) => s.transactions)
   const { queue } = useProcessed()
   const hasData = transactions.length > 0
@@ -42,7 +44,7 @@ export default function App() {
                 <rect x="64" y="24" width="12" height="52" rx="4" fill="#fff" opacity="0.95" />
               </svg>
             </span>
-            <span className="whitespace-nowrap text-lg font-bold text-ink">账单分析助手</span>
+            <span className="whitespace-nowrap text-lg font-bold text-ink">{L.app.name}</span>
           </button>
           <nav className="ml-auto flex items-center gap-1.5">
             {NAV.map((n) => {
@@ -61,7 +63,7 @@ export default function App() {
                   }`}
                 >
                   <span className="mr-1">{n.emoji}</span>
-                  <span className="hidden sm:inline">{n.label}</span>
+                  <span className="hidden sm:inline">{L.nav[n.labelKey]}</span>
                   {n.key === 'analysis' && reviewCount > 0 && !disabled && (
                     <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
                       {reviewCount}
@@ -71,6 +73,13 @@ export default function App() {
               )
             })}
           </nav>
+          <button
+            onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+            className="neu-raised neu-hover ml-1 shrink-0 rounded-full px-2.5 py-1.5 text-xs font-bold text-ink-soft"
+            title="切换语言 / Switch language"
+          >
+            {lang === 'zh' ? 'EN' : '中'}
+          </button>
         </div>
       </header>
 
@@ -85,10 +94,10 @@ export default function App() {
       {/* 页脚 */}
       <footer className="neu-inset" style={{ borderRadius: 0 }}>
         <div className="mx-auto max-w-5xl px-4 py-4 text-center text-xs leading-relaxed text-ink-soft">
-          账单分析助手 · 账单仅在本地浏览器解析与存储，永不上传服务器 · 内部转账/还款自动对冲，不计入收支 · 分析结果仅供个人参考
+          {L.app.name} · {L.app.footer}
           <br />
           <button className="mt-1 text-brand-600 hover:underline" onClick={() => navigate('privacy')}>
-            查看隐私承诺 →
+            {L.app.privacyLink}
           </button>
         </div>
       </footer>

@@ -15,6 +15,9 @@ export interface FinanceApp {
   note?: string
   /** 覆盖默认徽章文案（如购物平台的"自动识别"） */
   badge?: string
+  /** 英文版步骤 */
+  stepsEn?: string[]
+  noteEn?: string
 }
 
 const WECHAT: FinanceApp = {
@@ -23,7 +26,9 @@ const WECHAT: FinanceApp = {
   logoChar: '微',
   color: '#07c160',
   color2: '#0a9d4f',
-  supported: true,
+  
+    stepsEn: ["WeChat → Me → Services → Wallet → Bills","Top-right \"Common Issues\" → \"Download Bills\"","Purpose: \"For personal reconciliation\" (not the certified copy)","Pick range (a full year recommended) → enter email","Wait for the email (minutes~24h); unzip password arrives via WeChat Pay service notices","Unzip to get CSV/Excel, then upload it here"],
+    supported: true,
   steps: [
     '微信 → 我 → 服务 → 钱包 → 账单',
     '右上角「常见问题」→「下载账单」',
@@ -33,6 +38,7 @@ const WECHAT: FinanceApp = {
     '解压得到 CSV / Excel，回本页上传',
   ],
   note: '导出的是加密压缩包，先解压再上传',
+    noteEn: "Exported as an encrypted zip — unzip before uploading",
 }
 
 const ALIPAY: FinanceApp = {
@@ -41,7 +47,9 @@ const ALIPAY: FinanceApp = {
   logoChar: '支',
   color: '#1677ff',
   color2: '#0e5fd8',
-  supported: true,
+  
+    stepsEn: ["Alipay → Me → Bills","Top-right \"…\" → \"Issue transaction statement\"","Choose \"For personal reconciliation\"","Pick range → enter email → send","Unzip password arrives via Alipay service notices","Unzip to get CSV, then upload it here"],
+    supported: true,
   steps: [
     '支付宝 → 我的 → 账单',
     '右上角「…」→「开具交易流水证明」',
@@ -51,6 +59,7 @@ const ALIPAY: FinanceApp = {
     '解压得到 CSV，回本页上传',
   ],
   note: '余额宝、转账、还款都会被自动对冲',
+    noteEn: "Yuebao, transfers & repayments are auto-excluded",
 }
 
 /**
@@ -60,6 +69,8 @@ const ALIPAY: FinanceApp = {
 const BANKS: FinanceApp[] = [
   {
     key: 'icbc', name: '工商银行', logoChar: '工', color: '#c7000b', color2: '#9d0009',
+    
+    stepsEn: ["ICBC app → Home → Account → Statement printing","Pick account & range → email","Or search \"历史明细打印\" in the app"],
     supported: true,
     steps: [
       '工商银行APP → 首页【账户】→【明细打印】',
@@ -67,9 +78,12 @@ const BANKS: FinanceApp[] = [
       '或在首页搜索框搜「历史明细打印」直达',
     ],
     note: '支持常见导出格式(CSV/Excel/PDF)，试运行',
+    noteEn: "Common formats supported (CSV/Excel/PDF) — trial",
   },
   {
     key: 'abc', name: '农业银行', logoChar: '农', color: '#009944', color2: '#007a36',
+    
+    stepsEn: ["ABC app → Home → 明细查询 (details)","Top-right Export → pick range → email"],
     supported: true,
     steps: [
       '农业银行APP → 首页【明细查询】',
@@ -77,9 +91,12 @@ const BANKS: FinanceApp[] = [
       '选时间跨度（如近半年）→ 填邮箱 → 接收',
     ],
     note: '支持常见导出格式，试运行',
+    noteEn: "Common formats supported — trial",
   },
   {
     key: 'boc', name: '中国银行', logoChar: '中', color: '#d31119', color2: '#a30e14',
+    
+    stepsEn: ["Bank of China app → search \"交易流水打印\" → apply","Pick account & range → statement emailed to you"],
     supported: true,
     steps: [
       '中国银行APP → 首页搜索框搜「交易流水打印」',
@@ -87,9 +104,12 @@ const BANKS: FinanceApp[] = [
       '流水文件发送至邮箱，下载后回本页上传',
     ],
     note: '路径经用户验证；支持常见导出格式，试运行',
+    noteEn: "Path verified by a user; common formats supported — trial",
   },
   {
     key: 'ccb', name: '建设银行', logoChar: '建', color: '#0066b3', color2: '#00508c',
+    
+    stepsEn: ["CCB app → search \"交易流水打印\" → apply now","Or: Account → Details → Export"],
     supported: true,
     steps: [
       '建设银行APP → 首页搜索「交易流水打印」→ 立即申请',
@@ -97,9 +117,12 @@ const BANKS: FinanceApp[] = [
       '选账户与时间段 → 填邮箱（PDF格式）',
     ],
     note: '支持常见导出格式，试运行',
+    noteEn: "Common formats supported — trial",
   },
   {
     key: 'bocom', name: '交通银行', logoChar: '交', color: '#004b8d', color2: '#003a6e',
+    
+    stepsEn: ["BOCOM app → Home → My account → 明细清单","Choose e-version → pick range → open & email"],
     supported: true,
     steps: [
       '交通银行APP → 首页 → 我的账户 →【明细清单】',
@@ -107,9 +130,12 @@ const BANKS: FinanceApp[] = [
       '填邮箱接收电子流水清单；或搜索「交易明细」直达',
     ],
     note: '支持常见导出格式，试运行',
+    noteEn: "Common formats supported — trial",
   },
   {
     key: 'psbc', name: '邮储银行', logoChar: '邮', color: '#007a33', color2: '#006128',
+    
+    stepsEn: ["PSBC app → Accounts → Details → Apply for statement","Pick range → email"],
     supported: true,
     steps: [
       '邮储银行APP → 账户页 →【交易明细】→【申请流水】',
@@ -117,9 +143,12 @@ const BANKS: FinanceApp[] = [
       '若APP内找不到，可到柜台/智能柜台办理电子流水',
     ],
     note: '支持常见导出格式，试运行',
+    noteEn: "Common formats supported — trial",
   },
   {
     key: 'cmb', name: '招商银行', logoChar: '招', color: '#c8102e', color2: '#9c0c24',
+    
+    stepsEn: ["CMB app → search \"流水打印\" → e-version (PDF)","Or: Me → All → Services → Print statement","Up to 5 years of demand deposits, emailed"],
     supported: true,
     steps: [
       '招商银行APP → 首页搜索「流水打印」→ 选电子版（直接下载PDF）',
@@ -127,9 +156,12 @@ const BANKS: FinanceApp[] = [
       '可导出近五年活期明细发送至邮箱',
     ],
     note: 'CSV/Excel/PDF 均支持',
+    noteEn: "CSV/Excel/PDF all supported",
   },
   {
     key: 'citic', name: '中信银行', logoChar: '信', color: '#d31119', color2: '#a30e14',
+    
+    stepsEn: ["CITIC app → search \"交易流水打印\" → apply","Pick account & range → email (PDF)","Credit card: 动卡空间 app → Bills → e-statement"],
     supported: true,
     steps: [
       '中信银行APP → 首页搜索「交易流水打印」→ 申请打印',
@@ -137,9 +169,12 @@ const BANKS: FinanceApp[] = [
       '信用卡账单：动卡空间APP → 账单 → 电子账单',
     ],
     note: 'PDF账单已支持解析',
+    noteEn: "PDF bills are supported",
   },
   {
     key: 'pab', name: '平安银行', logoChar: '安', color: '#f26f21', color2: '#d55e18',
+    
+    stepsEn: ["Ping An Pocket app → 收支分析 → More → Print statement","Or search \"打印流水\" on home","Pick account/range → e-version → email"],
     supported: true,
     steps: [
       '平安口袋银行APP →【收支分析】→ 右上角「更多」→【打印流水】',
@@ -147,6 +182,7 @@ const BANKS: FinanceApp[] = [
       '选账户、日期、用途 → 电子版 → 填邮箱',
     ],
     note: '支持常见导出格式，试运行',
+    noteEn: "Common formats supported — trial",
   },
 ]
 
@@ -157,6 +193,8 @@ const BANKS: FinanceApp[] = [
 const SHOP_APPS: FinanceApp[] = [
   {
     key: 'jd', name: '京东', logoChar: '京', color: '#e1251b', color2: '#b01d16',
+    
+    stepsEn: ["JD purchases are paid via WeChat/Alipay/bank cards","Upload those channel bills — JD spending is auto-tagged","BNPL users: JD Finance app can issue a statement"],
     supported: false,
     badge: '自动识别',
     steps: [
@@ -165,9 +203,12 @@ const SHOP_APPS: FinanceApp[] = [
       '上传支付渠道账单后，本站自动识别京东系消费并分析',
     ],
     note: '白条用户：京东金融APP可开具交易流水证明',
+    noteEn: "Covered via payment-channel bills",
   },
   {
     key: 'taobao', name: '淘宝', logoChar: '淘', color: '#ff5000', color2: '#d94400',
+    
+    stepsEn: ["Taobao orders are paid via Alipay — fully covered by Alipay bills","Taobao app → My → Bills → statement export","Upload your Alipay bill; Taobao/Tmall spending is auto-tagged"],
     supported: false,
     badge: '自动识别',
     steps: [
@@ -176,9 +217,12 @@ const SHOP_APPS: FinanceApp[] = [
       '上传支付宝账单后，本站自动识别淘宝/天猫消费',
     ],
     note: '上传支付宝账单即可覆盖',
+    noteEn: "Covered by your Alipay bill",
   },
   {
     key: 'pdd', name: '拼多多', logoChar: '拼', color: '#e02e24', color2: '#b8241d',
+    
+    stepsEn: ["PDD purchases are paid via WeChat/Alipay — no official export","Upload WeChat/Alipay bills; PDD spending is auto-tagged"],
     supported: false,
     badge: '自动识别',
     steps: [
@@ -187,9 +231,12 @@ const SHOP_APPS: FinanceApp[] = [
       '上传微信/支付宝账单后，本站自动识别拼多多消费',
     ],
     note: '多多钱包消费在银行账单中显示为渠道扣款',
+    noteEn: "Duoduo wallet shows as channel charges in bank bills",
   },
   {
     key: 'meituan', name: '美团', logoChar: '美', color: '#f59e0b', color2: '#d97706',
+    
+    stepsEn: ["Meituan app → My → Wallet → Bills (view only)","Paid via WeChat/Alipay/cards; auto-tagged from channel bills"],
     supported: false,
     badge: '自动识别',
     steps: [
@@ -198,6 +245,7 @@ const SHOP_APPS: FinanceApp[] = [
       '上传支付渠道账单后，本站自动识别美团/外卖消费',
     ],
     note: '含美团外卖、到店、酒旅',
+    noteEn: "Includes Waimai, in-store & travel",
   },
 ]
 

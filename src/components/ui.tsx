@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { categoryDef } from '../core/categories'
 import { BANK_META, hasRealTime, platformName, type BankCode, type Platform } from '../core/schema'
 import type { Transaction } from '../core/schema'
+import { useI18n } from '../i18n'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
@@ -40,14 +41,14 @@ export function PlatformBadge({ platform }: { platform: string }) {
   )
 }
 
-export const FLAG_LABEL: Record<string, string> = {
-  internal: '已对冲',
-  repayment: '信用还款',
-  refund: '退款',
-}
-
 export function FlagChip({ tx }: { tx: Transaction }) {
+  const { L } = useI18n()
   if (!tx.transferFlag) return null
+  const labels: Record<string, string> = {
+    internal: L.common.flags.internal,
+    repayment: L.common.flags.repayment,
+    refund: L.common.flags.refund,
+  }
   const colors: Record<string, { color: string; bg: string }> = {
     internal: { color: '#a8a29e', bg: '#a8a29e1a' },
     repayment: { color: '#c2410c', bg: '#ffedd5' },
@@ -57,7 +58,7 @@ export function FlagChip({ tx }: { tx: Transaction }) {
   return (
     <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium"
       style={{ color: c.color, backgroundColor: c.bg }}>
-      {FLAG_LABEL[tx.transferFlag]}
+      {labels[tx.transferFlag]}
     </span>
   )
 }

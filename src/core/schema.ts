@@ -5,23 +5,23 @@ export type BankCode = 'icbc' | 'abc' | 'boc' | 'ccb' | 'bocom' | 'psbc' | 'cmb'
 
 export type Platform = 'wechat' | 'alipay' | BankCode
 
-export const BANK_META: Record<BankCode, { name: string; color: string; color2: string }> = {
-  icbc: { name: '工商银行', color: '#c7000b', color2: '#9d0009' },
-  abc: { name: '农业银行', color: '#009944', color2: '#007a36' },
-  boc: { name: '中国银行', color: '#d31119', color2: '#a30e14' },
-  ccb: { name: '建设银行', color: '#0066b3', color2: '#00508c' },
-  bocom: { name: '交通银行', color: '#004b8d', color2: '#003a6e' },
-  psbc: { name: '邮储银行', color: '#007a33', color2: '#006128' },
-  cmb: { name: '招商银行', color: '#c8102e', color2: '#9c0c24' },
-  citic: { name: '中信银行', color: '#d31119', color2: '#a30e14' },
-  pab: { name: '平安银行', color: '#f26f21', color2: '#d55e18' },
-  bank: { name: '银行账户', color: '#475569', color2: '#334155' },
+export const BANK_META: Record<BankCode, { name: string; nameEn: string; color: string; color2: string }> = {
+  icbc: { nameEn: 'ICBC', name: '工商银行', color: '#c7000b', color2: '#9d0009' },
+  abc: { nameEn: 'ABC', name: '农业银行', color: '#009944', color2: '#007a36' },
+  boc: { nameEn: 'Bank of China', name: '中国银行', color: '#d31119', color2: '#a30e14' },
+  ccb: { nameEn: 'CCB', name: '建设银行', color: '#0066b3', color2: '#00508c' },
+  bocom: { nameEn: 'BOCOM', name: '交通银行', color: '#004b8d', color2: '#003a6e' },
+  psbc: { nameEn: 'PSBC', name: '邮储银行', color: '#007a33', color2: '#006128' },
+  cmb: { nameEn: 'CMB', name: '招商银行', color: '#c8102e', color2: '#9c0c24' },
+  citic: { nameEn: 'CITIC', name: '中信银行', color: '#d31119', color2: '#a30e14' },
+  pab: { nameEn: 'PAB', name: '平安银行', color: '#f26f21', color2: '#d55e18' },
+  bank: { nameEn: 'Bank account', name: '银行账户', color: '#475569', color2: '#334155' },
 }
 
-export function platformName(p: Platform): string {
-  if (p === 'wechat') return '微信'
-  if (p === 'alipay') return '支付宝'
-  return BANK_META[p]?.name ?? p
+export function platformName(p: Platform, lang: 'zh' | 'en' = 'zh'): string {
+  if (p === 'wechat') return lang === 'en' ? 'WeChat' : '微信'
+  if (p === 'alipay') return lang === 'en' ? 'Alipay' : '支付宝'
+  return lang === 'en' ? BANK_META[p]?.nameEn ?? p : BANK_META[p]?.name ?? p
 }
 
 /** 收支方向。neutral = 平台内资金腾挪（零钱充值/提现、余额宝等），不计收支 */

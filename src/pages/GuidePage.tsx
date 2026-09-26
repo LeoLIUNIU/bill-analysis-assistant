@@ -4,8 +4,10 @@ import { isDemoTxn, useStore } from '../store/useStore'
 import { navigate } from '../hooks/useHashRoute'
 import { monthsOf } from '../core/month'
 import { Card } from '../components/ui'
+import { useI18n } from '../i18n'
 
 export function GuidePage({ hasData }: { hasData: boolean }) {
+  const { lang, L } = useI18n()
   const importFiles = useStore((s) => s.importFiles)
   const loadDemo = useStore((s) => s.loadDemo)
   const clearDemo = useStore((s) => s.clearDemo)
@@ -22,16 +24,18 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
       total: allTx.length,
       desc:
         ms.length > 0
-          ? `微信 ${wechat} 笔 · 支付宝 ${alipay} 笔${bank > 0 ? ` · 银行 ${bank} 笔` : ''} · 覆盖 ${ms[ms.length - 1]} ~ ${ms[0]}`
+          ? L.guide.summary(wechat, alipay, bank, ms[ms.length - 1], ms[0])
           : '',
     }
-  }, [allTx])
+  }, [allTx, lang, L])
   const [dragging, setDragging] = useState(false)
   /** 单选查看：一次只展示一个APP的账单下载路径，再点一次收起 */
   const [guideKey, setGuideKey] = useState<string | null>('wechat')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const guideApp: FinanceApp | null = FINANCE_APPS.find((a) => a.key === guideKey) ?? null
+  const stepsOf = (app: FinanceApp) => (lang === 'en' && app.stepsEn ? app.stepsEn : app.steps)
+  const noteOf = (app: FinanceApp) => (lang === 'en' && app.noteEn ? app.noteEn : app.note)
 
   const toggleApp = (key: string) => {
     setGuideKey((cur) => (cur === key ? null : key))
@@ -54,71 +58,70 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
     document.getElementById('step-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const uploadHint = '把微信 / 支付宝账单文件拖到这里'
+  const uploadHint = L.guide.uploadMain
 
   return (
     <div className="mx-auto max-w-4xl">
       {/* ---------- Hero ---------- */}
       <section className="pb-10 pt-10 text-center sm:pt-14">
         <div className="mx-auto mb-5 inline-flex items-center gap-1.5 neu-inset-sm px-3 py-1 text-xs font-medium text-ink-soft">
-          🔒 纯本地分析 · 数据永不上传
+          {L.guide.pill}
         </div>
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-ink sm:text-5xl">
-          上传账单，
+          {L.guide.heroTitle1}
           <span className="bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent">
-            看清每一笔钱
+            {L.guide.heroTitle2}
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
-          微信 / 支付宝账单上传解析，银行账单（六大行+招商/中信/平安）支持常见导出格式——
-          转账自动对冲、分类深析、洞察报告、消费人格，一站式完成。
+          {L.guide.heroDesc}
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => { loadDemo(); navigate('analysis') }}
             className="neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold accent-text"
           >
-            🎮 一键体验（演示数据）
+            {L.guide.demo}
           </button>
           <button
             onClick={scrollToStep1}
             className="neu-raised neu-hover rounded-xl px-6 py-3 text-sm font-semibold text-ink"
           >
-            开始导入我的账单
+            {L.guide.start}
           </button>
           {hasData && (
             <button
               onClick={analyze}
               className="neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold text-emerald-700"
             >
-              🚀 一键分析 →
+              {L.guide.analyze}
             </button>
           )}
         </div>
         <div className="mt-7 flex flex-wrap justify-center gap-2 text-xs text-ink-soft">
-          <span className="neu-inset-sm px-3 py-1.5 font-medium text-emerald-700">🔒 账单只在浏览器本地解析</span>
-          <span className="neu-inset-sm px-3 py-1.5 font-medium text-orange-700">🔁 转账还款不算收支</span>
-          <span className="neu-inset-sm px-3 py-1.5 font-medium text-sky-700">🐾 消费人格报告</span>
-          <span className="neu-inset-sm px-3 py-1.5 font-medium text-ink-soft">无账号 · 无上传 · 无广告</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-emerald-700">{L.guide.feat1}</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-orange-700">{L.guide.feat2}</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-sky-700">{L.guide.feat3}</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-ink-soft">{L.guide.feat4}</span>
         </div>
       </section>
 
       {/* ---------- 演示数据提醒 ---------- */}
       {hasDemo && (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
-          <span>🐘 当前混有「一键体验」的演示数据，上传真实账单前建议先清除，避免影响分析结果。</span>
+          <span>🐘 {L.guide.demoBanner}</span>
           <button
             onClick={clearDemo}
             className="ml-auto rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
           >
-            🗑️ 清除演示数据
+            {L.guide.clearDemo}
           </button>
         </div>
       )}
 
       {/* ---------- Step 01 如何下载账单 ---------- */}
       <section id="step-1" className="scroll-mt-20">
-        <StepHeading no="01" title="如何下载金融APP账单" desc="点击APP图标查看对应的账单下载路径（一次查看一个，再点一次收起）。银行APP菜单常变：路径对不上时，在APP首页搜索框搜「流水」或「交易流水打印」最快。" />
+        <StepHeading no="01" title={L.guide.step1} desc={L.guide.step1Desc} />
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
           {FINANCE_APPS.map((app) => {
             const active = guideKey === app.key
@@ -145,7 +148,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
                 </span>
                 <span className="text-xs font-semibold text-ink">{app.name}</span>
                 <span className={`rounded-full px-1.5 py-px text-[10px] font-medium ${app.supported ? 'bg-emerald-100 text-emerald-700' : app.badge ? 'bg-brand-100 text-brand-700' : 'bg-stone-100 text-stone-400'}`}>
-                  {app.badge ?? (app.supported ? '可解析' : '即将支持')}
+                  {app.badge ?? (app.supported ? L.guide.parseBadge : L.guide.soonBadge)}
                 </span>
               </button>
             )
@@ -163,19 +166,19 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
                 {guideApp.logoChar}
               </span>
               <div>
-                <h3 className="text-sm font-bold text-ink">{guideApp.name} · 获取账单路径</h3>
+                <h3 className="text-sm font-bold text-ink">{guideApp.name} · {L.guide.guidePath}</h3>
                 <p className="text-xs text-ink-soft">
-                  {guideApp.supported ? '导出的文件可直接上传，自动解析' : '该平台解析支持正在开发中'}
+                  {guideApp.supported ? L.guide.guideAuto : L.guide.guideWip}
                 </p>
               </div>
               {guideApp.supported && (
                 <span className="ml-auto hidden rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 sm:block">
-                  支持自动解析
+                  {L.guide.guideOk}
                 </span>
               )}
             </div>
             <ol className="mt-4 space-y-2.5">
-              {guideApp.steps.map((s, i) => (
+              {stepsOf(guideApp).map((s, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-ink-soft">
                   <span
                     className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
@@ -187,8 +190,8 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
                 </li>
               ))}
             </ol>
-            {guideApp.note && (
-              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">💡 {guideApp.note}</p>
+            {noteOf(guideApp) && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">💡 {noteOf(guideApp)}</p>
             )}
           </Card>
         )}
@@ -196,7 +199,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
 
       {/* ---------- Step 02 上传 ---------- */}
       <section className="mt-14">
-        <StepHeading no="02" title="导出并上传账单" desc="按上面的路径把账单导出到邮箱，下载解压后拖进来。可多选、可只传一个平台先用起来。" />
+        <StepHeading no="02" title={L.guide.step2} desc={L.guide.step2Desc} />
         <Card className="overflow-hidden">
           <div
             className={`flex flex-col items-center justify-center border-2 border-dashed p-10 transition-colors ${
@@ -207,11 +210,11 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
             onDrop={(e) => { e.preventDefault(); setDragging(false); pickFiles(e.dataTransfer.files) }}
             onClick={() => fileRef.current?.click()}
             role="button"
-            aria-label="上传账单文件"
+            aria-label={L.guide.uploadAria}
           >
             <div className="text-4xl">📥</div>
-            <p className="mt-3 font-medium text-ink">{uploadHint}，或点击选择文件</p>
-            <p className="mt-1 text-xs text-ink-soft">CSV / Excel(xlsx) / PDF 均可 · 可多选 · 文件不会离开你的设备</p>
+            <p className="mt-3 font-medium text-ink">{uploadHint}{L.guide.uploadOr}</p>
+            <p className="mt-1 text-xs text-ink-soft">{L.guide.uploadSub}</p>
             <input
               ref={fileRef}
               type="file"
@@ -231,14 +234,14 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
                 <span>{r.ok ? '✅' : '❌'}</span>
                 <span className="min-w-0 flex-1 truncate text-ink">{r.name}</span>
                 {r.ok ? (
-                  <span className="shrink-0 text-ink-soft">{r.platform} · {r.count ? `${r.count} 笔` : '已导入'}</span>
+                  <span className="shrink-0 text-ink-soft">{r.platform} · {r.count ? L.guide.rowsUnit(r.count) : L.guide.imported}</span>
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-right text-xs text-red-500">{r.error}</span>
                 )}
               </div>
             ))}
             <div className="flex justify-end px-4 py-2">
-              <button className="text-xs text-ink-soft hover:text-ink" onClick={clearResults}>关闭</button>
+              <button className="text-xs text-ink-soft hover:text-ink" onClick={clearResults}>{L.common.close}</button>
             </div>
           </Card>
         )}
@@ -247,16 +250,16 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
           <Card className="mt-3 overflow-hidden ring-2 ring-brand-200">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
               <div className="min-w-0">
-                <div className="text-sm font-bold text-ink">📊 已就绪 {summary.total} 笔账单</div>
+                <div className="text-sm font-bold text-ink">{L.guide.readyTotal(summary.total)}</div>
                 <div className="mt-0.5 text-xs text-ink-soft">
-                  {summary.desc} · 可继续上传其他文件补充，也可以直接开始分析
+                  {summary.desc} · {L.guide.readyHint}
                 </div>
               </div>
               <button
                 onClick={analyze}
                 className="ml-auto neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold accent-text"
               >
-                🚀 一键分析 →
+                {L.guide.analyze}
               </button>
             </div>
           </Card>
@@ -265,13 +268,13 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
 
       {/* ---------- Step 03 ---------- */}
       <section className="mt-14 pb-6">
-        <StepHeading no="03" title="拿到你的收支全貌" desc="上传后自动完成：转账对冲 → 智能分类 → 洞察报告 → 消费人格。" />
+        <StepHeading no="03" title={L.guide.step3} desc={L.guide.step3Desc} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           {[
-            { icon: '🔁', t: '转账对冲', d: '支付宝转微信、还款、退款不算收支' },
-            { icon: '🔍', t: '一键纠错', d: '拿不准的账单问你一句，越用越准' },
-            { icon: '💡', t: '洞察报告', d: '结构、习惯、环比、预警一眼看清' },
-            { icon: '🐾', t: '消费人格', d: '数据推导你的动物人格，可分享' },
+            { icon: '🔁', t: L.guide.f1t, d: L.guide.f1d },
+            { icon: '🔍', t: L.guide.f2t, d: L.guide.f2d },
+            { icon: '💡', t: L.guide.f3t, d: L.guide.f3d },
+            { icon: '🐾', t: L.guide.f4t, d: L.guide.f4d },
           ].map((f) => (
             <div key={f.t} className="rounded-2xl bg-white p-4 ring-1 ring-stone-200 transition-shadow hover:shadow-md">
               <div className="text-2xl">{f.icon}</div>
@@ -281,8 +284,8 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
           ))}
         </div>
         <p className="mt-6 text-center text-xs leading-relaxed text-ink-soft">
-          🔒 全程在浏览器本地完成，没有任何网络请求携带你的账单数据 ·
-          <button className="ml-1 text-brand-600 hover:underline" onClick={() => navigate('privacy')}>查看隐私承诺</button>
+          {L.guide.localNote}
+          <button className="ml-1 text-brand-600 hover:underline" onClick={() => navigate('privacy')}>{L.app.privacyLink.replace(' →', '')}</button>
         </p>
       </section>
     </div>

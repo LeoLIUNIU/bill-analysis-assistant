@@ -862,7 +862,7 @@ describe('P1/P3 洞察分级与文案', () => {
     const topCatIdx = insights.findIndex((x) => x.id === 'top-cat')
     expect(dedupIdx).toBeGreaterThanOrEqual(0)
     expect(dedupIdx).toBeLessThan(topCatIdx)
-    expect(insights.find((x) => x.id === 'dedup')!.group).toBe('口径')
+    expect(insights.find((x) => x.id === 'dedup')!.group).toBe('scope')
   })
 
   it('全部范围时结余文案自适应', () => {
