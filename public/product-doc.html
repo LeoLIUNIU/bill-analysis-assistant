@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>账单分析助手 · 产品文档 | Bill Lens</title>
+<meta name="description" content="账单分析助手——本地账单分析引擎。上传微信/支付宝/银行账单，转账对冲、分类深析、消费人格。数据永不上传。">
+<style>
+  :root{
+    --bg:#f4f4f1; --ink:#17181c; --ink2:#5a5e6b; --ink3:#8a8f9c;
+    --panel:#17181c; --panel2:#1e2026;
+    --lime:#d3e04a; --blue:#5b6cf0; --teal:#4ecdc4;
+    --c1:#e9e7f8; --c2:#e7f0da; --c3:#dfe7f5;
+    --radius:24px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.6;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .page{max-width:1080px;margin:0 auto;padding:48px 40px 40px}
+
+  /* ===== 页眉 ===== */
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:44px}
+  .brand .mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#6d5dfc,#4f46e5);display:flex;align-items:center;justify-content:center}
+  .brand .mark svg{display:block}
+  .brand .word{font-size:12px;font-weight:700;letter-spacing:3px;color:var(--ink2)}
+  .brand .word b{color:var(--ink)}
+
+  /* ===== Hero ===== */
+  h1.hero{font-size:64px;font-weight:900;letter-spacing:-1px;line-height:1.05}
+  .hero-sub{font-size:26px;font-weight:700;margin-top:10px}
+  .hero-tag{font-style:italic;font-weight:700;color:#454b8f;margin-top:6px;font-size:19px}
+  .hero-line{width:64px;height:6px;background:var(--lime);border-radius:3px;margin:18px 0 34px}
+
+  /* ===== 深色宣言面板 ===== */
+  .panel{background:var(--panel);color:#fff;border-radius:var(--radius);padding:40px 44px;position:relative;overflow:hidden}
+  .panel .eyebrow{font-size:12px;font-weight:800;letter-spacing:3px;color:var(--lime);text-transform:uppercase}
+  .panel h2{font-size:30px;font-weight:800;line-height:1.3;margin:14px 0 12px}
+  .panel p.desc{font-size:14.5px;color:rgba(255,255,255,.72);max-width:720px}
+  .deco{position:absolute;border-radius:50%}
+  .deco.b{width:96px;height:96px;background:var(--blue);top:34px;right:120px}
+  .deco.l{width:52px;height:52px;background:var(--lime);top:96px;right:76px}
+
+  /* ===== 分节标题 ===== */
+  .sec{margin-top:64px}
+  .sec h3{font-size:30px;font-weight:900}
+  .sec .en{font-size:13px;font-weight:800;letter-spacing:2px;color:var(--ink2);text-transform:uppercase}
+  .sec .bar{width:46px;height:5px;background:var(--lime);border-radius:3px;margin-top:10px}
+  .sec .desc{margin-top:14px;font-size:15px;color:var(--ink2);max-width:820px}
+
+  /* ===== 痛点 ===== */
+  .pains{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+  .pain{background:#fff;border-radius:20px;padding:26px 26px 22px;box-shadow:0 1px 2px rgba(23,24,28,.05)}
+  .pain .no{font-size:13px;font-weight:800;color:var(--ink3)}
+  .pain h4{font-size:19px;font-weight:800;margin:8px 0 8px}
+  .pain p{font-size:13.5px;color:var(--ink2)}
+  .pain .ico{font-size:26px}
+
+  /* ===== 核心价值卡片 ===== */
+  .values{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+  .value{border-radius:20px;padding:24px 24px 20px;min-height:170px}
+  .value.v1{background:var(--c1)} .value.v2{background:var(--c2)} .value.v3{background:var(--c3)}
+  .value .no{font-size:13px;font-weight:800;color:#7a7fb0}
+  .value h4{font-size:20px;font-weight:800;margin:10px 0 8px}
+  .value p{font-size:13.5px;color:var(--ink2)}
+
+  /* ===== 关键数据 ===== */
+  .facts{display:grid;grid-template-columns:150px repeat(4,1fr);gap:20px;align-items:center;margin-top:22px}
+  .facts .title h4{font-size:24px;font-weight:900;color:#fff}
+  .facts .title .en{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--lime);text-transform:uppercase}
+  .fact{border-left:1px solid rgba(255,255,255,.16);padding-left:20px}
+  .fact .n{font-size:34px;font-weight:900;color:#fff}
+  .fact .n.hl{color:var(--lime)}
+  .fact .t{font-size:13px;color:rgba(255,255,255,.85);font-weight:600;margin-top:2px}
+  .fact .d{font-size:11.5px;color:rgba(255,255,255,.55);margin-top:2px}
+
+  /* ===== 工作原理 ===== */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px;counter-reset:step}
+  .step{background:#fff;border-radius:20px;padding:24px 22px;box-shadow:0 1px 2px rgba(23,24,28,.05)}
+  .step .no{display:inline-flex;width:30px;height:30px;border-radius:50%;background:var(--panel);color:var(--lime);font-size:13px;font-weight:800;align-items:center;justify-content:center}
+  .step h4{font-size:17px;font-weight:800;margin:12px 0 6px}
+  .step p{font-size:13px;color:var(--ink2)}
+
+  /* ===== 应用场景 ===== */
+  .scenes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px;margin-top:22px}
+  .scene{display:flex;align-items:baseline;gap:14px;padding:14px 6px;border-bottom:1px solid #e4e4de}
+  .scene .no{font-size:12px;font-weight:800;color:var(--ink3)}
+  .scene .t{font-size:16px;font-weight:700}
+
+  /* ===== 隐私承诺 ===== */
+  .promise{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+  .promise .p-item{background:#fff;border-radius:20px;padding:24px;border-top:4px solid var(--lime)}
+  .promise .p-item:nth-child(2){border-top-color:var(--blue)}
+  .promise .p-item:nth-child(3){border-top-color:var(--teal)}
+  .promise h4{font-size:17px;font-weight:800;margin-bottom:8px}
+  .promise p{font-size:13.5px;color:var(--ink2)}
+
+  /* ===== 页脚 ===== */
+  .footer{margin-top:64px;background:var(--c3);border-radius:18px;padding:18px 26px;display:flex;justify-content:space-between;align-items:center}
+  .footer .l{font-size:15px;font-weight:800}
+  .footer .l a{color:var(--ink);text-decoration:none}
+  .footer .r{font-style:italic;font-weight:600;color:var(--ink2)}
+  .doc-meta{display:flex;justify-content:space-between;margin-top:14px;font-size:11px;letter-spacing:1.5px;color:var(--ink3);text-transform:uppercase}
+
+  .cta{display:inline-flex;align-items:center;gap:8px;background:var(--lime);color:var(--ink);text-decoration:none;font-weight:800;font-size:15px;padding:12px 26px;border-radius:999px;margin-top:26px}
+  .cta:hover{filter:brightness(1.05)}
+
+  /* ===== 打印 ===== */
+  @media print{
+    body{background:#fff}
+    .page{padding:0}
+    .panel,.facts{border-radius:16px}
+  }
+  @media (max-width:860px){
+    .pains,.values,.steps,.promise{grid-template-columns:1fr}
+    .facts{grid-template-columns:1fr 1fr}
+    h1.hero{font-size:44px}
+    .panel{padding:30px 26px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 页眉 -->
+  <div class="brand">
+    <span class="mark">
+      <svg width="20" height="20" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="24" y="52" width="12" height="24" rx="4" fill="#fff" opacity="0.95"/>
+        <rect x="44" y="36" width="12" height="40" rx="4" fill="#fff" opacity="0.95"/>
+        <rect x="64" y="24" width="12" height="52" rx="4" fill="#fff" opacity="0.95"/>
+      </svg>
+    </span>
+    <span class="word"><b>BILL LENS</b> / 本地账单分析引擎</span>
+  </div>
+
+  <!-- Hero -->
+  <h1 class="hero">账单分析助手</h1>
+  <div class="hero-sub">智能账单分析引擎</div>
+  <div class="hero-tag">Clarity that stays local.</div>
+  <div class="hero-line"></div>
+
+  <!-- 宣言面板 -->
+  <div class="panel">
+    <div class="deco b"></div><div class="deco l"></div>
+    <div class="eyebrow">Local Bill Intelligence</div>
+    <h2>不是又一个记账 App<br>而是一台把账单变成答案的本地分析引擎</h2>
+    <p class="desc">从账单导出、本地解析、跨渠道对冲到消费洞察与人格报告，账单分析助手把「看懂钱花哪了」压缩成每月三分钟的事——而你的账单，从始至终没有离开你的浏览器。</p>
+    <a class="cta" href="https://leoliuniu.github.io/bill-analysis-assistant/" target="_blank" rel="noopener">立即体验 →</a>
+  </div>
+
+  <!-- 痛点 -->
+  <div class="sec">
+    <h3>熟悉的困境</h3>
+    <div class="en">The Problem</div>
+    <div class="bar"></div>
+    <div class="desc">如果你也有下面任何一种感受——不是你不够自律，是工具从来都没为中国人设计过。</div>
+    <div class="pains">
+      <div class="pain">
+        <div class="no">01</div>
+        <div class="ico">🧩</div>
+        <h4>消费是碎的</h4>
+        <p>微信里一笔、支付宝里一笔、银行卡里还有代扣和快捷支付——十几个入口，没有任何一个地方能看到完整的收支全貌。</p>
+      </div>
+      <div class="pain">
+        <div class="no">02</div>
+        <div class="ico">⏳</div>
+        <h4>记账是反人性的</h4>
+        <p>手动记账平均坚持不过两周。不是你不够自律，是「每天花五分钟记账」这件事本身要求太高。</p>
+      </div>
+      <div class="pain">
+        <div class="no">03</div>
+        <div class="ico">🔢</div>
+        <h4>数字是失真的</h4>
+        <p>从银行卡转到支付宝，传统工具会记成一次「支出」加一次「收入」——钱只是换了个地方，账本却翻了倍。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心价值 -->
+  <div class="sec">
+    <h3>核心价值</h3>
+    <div class="en">Core Value</div>
+    <div class="bar"></div>
+    <div class="values">
+      <div class="value v1">
+        <div class="no">01</div>
+        <h4>跨渠道对冲</h4>
+        <p>银行卡 → 支付宝/微信的转账、花呗与信用卡还款、退款冲减，自动识别并剔除——收支不再重复计算。</p>
+      </div>
+      <div class="value v2">
+        <div class="no">02</div>
+        <h4>隐私本地优先</h4>
+        <p>账单只在浏览器内存中解析，永不上传任何服务器；每个金融APP的账单导出路径，我们一步一步教你。</p>
+      </div>
+      <div class="value v3">
+        <div class="no">03</div>
+        <h4>为中国账单而生</h4>
+        <p>微信 / 支付宝 / 银行PDF 三大来源深度适配——财付通快捷支付、代发工资、花呗还款这些「中国式摘要」，我们看得懂。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关键数据 -->
+  <div class="panel">
+    <div class="facts">
+      <div class="title">
+        <h4>关键数据</h4>
+        <div class="en">By the numbers</div>
+      </div>
+      <div class="fact">
+        <div class="n hl">0</div>
+        <div class="t">数据上传</div>
+        <div class="d">全程浏览器本地处理</div>
+      </div>
+      <div class="fact">
+        <div class="n">3</div>
+        <div class="t">账单来源</div>
+        <div class="d">微信 / 支付宝 / 银行PDF</div>
+      </div>
+      <div class="fact">
+        <div class="n">15+</div>
+        <div class="t">金融APP导出指引</div>
+        <div class="d">六大行 + 招商/中信/平安</div>
+      </div>
+      <div class="fact">
+        <div class="n">8</div>
+        <div class="t">种消费人格</div>
+        <div class="d">数据推导 · 可分享卡片</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工作原理 -->
+  <div class="sec">
+    <h3>工作原理</h3>
+    <div class="en">How it works</div>
+    <div class="bar"></div>
+    <div class="steps">
+      <div class="step">
+        <span class="no">1</span>
+        <h4>导出账单</h4>
+        <p>按图文指引从微信 / 支付宝 / 银行导出账单文件——邮件接收，几分钟搞定。</p>
+      </div>
+      <div class="step">
+        <span class="no">2</span>
+        <h4>拖入上传</h4>
+        <p>多文件批量拖入，格式自动识别，全部在你的浏览器本地解析。</p>
+      </div>
+      <div class="step">
+        <span class="no">3</span>
+        <h4>一键分析</h4>
+        <p>转账对冲、智能分类、待确认纠错——洞察与深度挖掘自动生成。</p>
+      </div>
+      <div class="step">
+        <span class="no">4</span>
+        <h4>生成报告</h4>
+        <p>下载完整分析报告，或生成四款消费人格卡片，金额可见 / 隐藏由你决定。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 应用场景 -->
+  <div class="sec">
+    <h3>应用场景</h3>
+    <div class="en">Made for real life</div>
+    <div class="bar"></div>
+    <div class="scenes">
+      <div class="scene"><span class="no">01</span><span class="t">月度收支复盘</span></div>
+      <div class="scene"><span class="no">02</span><span class="t">年度账单总结</span></div>
+      <div class="scene"><span class="no">03</span><span class="t">削减订阅与「扣费刺客」</span></div>
+      <div class="scene"><span class="no">04</span><span class="t">情侣 / 家庭财务透明</span></div>
+      <div class="scene"><span class="no">05</span><span class="t">自由职业者收支管理</span></div>
+      <div class="scene"><span class="no">06</span><span class="t">攒钱目标追踪</span></div>
+    </div>
+  </div>
+
+  <!-- 隐私承诺 -->
+  <div class="sec">
+    <h3>隐私承诺</h3>
+    <div class="en">Privacy by architecture</div>
+    <div class="bar"></div>
+    <div class="promise">
+      <div class="p-item">
+        <h4>原始账单：即用即弃</h4>
+        <p>CSV/Excel/PDF 只在浏览器内存中解析，解析完原始内容即丢弃——可在开发者工具的 Network 面板验证。</p>
+      </div>
+      <div class="p-item">
+        <h4>分析结果：只存本地</h4>
+        <p>分类与报表保存在你浏览器的 localStorage 中；JSON 存档一键导出，随时带走。</p>
+      </div>
+      <div class="p-item">
+        <h4>没有服务器可被泄露</h4>
+        <p>无后端、无账号、无数据库——「拖库泄露账单」这件事在架构上就不成立。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <div class="footer">
+    <div class="l">账单分析助手 ｜ <a href="https://leoliuniu.github.io/bill-analysis-assistant/" target="_blank" rel="noopener">leoliuniu.github.io/bill-analysis-assistant</a></div>
+    <div class="r">Clarity that stays local.</div>
+  </div>
+  <div class="doc-meta">
+    <span>Bill Lens · Product Overview</span>
+    <span>01</span>
+  </div>
+
+</div>
+</body>
+</html>
