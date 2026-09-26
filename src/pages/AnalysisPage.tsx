@@ -23,8 +23,10 @@ import {
 } from '../core/analysis'
 import { downloadReport, type ReportData } from '../core/report'
 import { computePersona } from '../core/persona'
+import { computeLabelCandidates, unlabeledPool } from '../core/labeling'
+import { LabelingModal } from '../components/LabelingModal'
 import { countsAsFlow, needsReview } from '../core/transfer'
-import { BANK_META, platformName, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
+import { BANK_META, platformName, type Correction, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
 import { Chart, donutOption, sankeyOption, trendOption, type DonutDetail, type SankeyDatum } from '../components/charts'
 import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney, fmtTxTime } from '../components/ui'
@@ -63,6 +65,22 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   const incomes = useMemo(() => incomeBreakdown(monthTx), [monthTx])
   const recurring = useMemo(() => recurringExpenses(processed), [processed])
   const mining = useMemo(() => deepMining(monthTx, processed), [monthTx, processed])
+  const skippedLabelIds = useStore((s) => s.skippedLabelIds)
+  const skipLabel = useStore((s) => s.skipLabel)
+  const [labelingOpen, setLabelingOpen] = useState(false)
+  const [poolBefore, setPoolBefore] = useState(0)
+  const labelCandidates = useMemo(
+    () => computeLabelCandidates(processed, agg?.expense ?? 0, new Set(skippedLabelIds)),
+    [processed, agg, skippedLabelIds],
+  )
+  const pool = useMemo(() => unlabeledPool(processed, agg?.expense ?? 0), [processed, agg])
+  const openLabeling = () => {
+    setPoolBefore(pool.sum)
+    setLabelingOpen(true)
+  }
+  const handleLabelConfirm = (id: string, category: string, memo?: string) => {
+    useStore.getState().setCorrection(id, { category, memo })
+  }
   const persona = useMemo(() => computePersona(monthTx), [monthTx])
   const shopping = useMemo(() => shoppingSpend(monthTx, agg?.expense ?? 0), [monthTx, agg])
 
@@ -170,14 +188,32 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
 
       {tab === 'overview' && (
         <OverviewTab agg={agg} prev={prev} monthTx={monthTx} allMonths={allMonths} allAggregates={allAggregates}
-          insights={insights} incomes={incomes} payMethods={payMethods} catDetails={catDetails} />
+          insights={insights} incomes={incomes} payMethods={payMethods} catDetails={catDetails}
+          labelBanner={labelCandidates.length > 0 ? {
+            count: labelCandidates.length,
+            sum: labelCandidates.reduce((s, c) => s + c.tx.amount, 0),
+            share: agg.expense > 0 ? labelCandidates.reduce((s, c) => s + c.tx.amount, 0) / agg.expense : 0,
+          } : null}
+          onStartLabeling={openLabeling} />
       )}
       {tab === 'spending' && (
         <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} shopping={shopping} />
       )}
       {tab === 'transactions' && (
-        <TransactionsTab processed={processed} queue={queue} months={allMonths} correctionsCount={Object.keys(corrections).length} />
+        <TransactionsTab processed={processed} queue={queue} months={allMonths} correctionsCount={Object.keys(corrections).length}
+          corrections={corrections} labelCount={labelCandidates.length} onStartLabeling={openLabeling} />
       )}
+        {labelingOpen && (
+          <LabelingModal
+            candidates={labelCandidates}
+            all={processed}
+            poolBefore={poolBefore}
+            poolAfter={pool.sum}
+            onConfirm={handleLabelConfirm}
+            onSkip={skipLabel}
+            onClose={() => setLabelingOpen(false)}
+          />
+        )}
     </div>
   )
 }
@@ -203,7 +239,7 @@ function monthChip(active: boolean): string {
 
 /* ================= Tab 1: 总览 ================= */
 
-function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails }: {
+function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails, labelBanner, onStartLabeling }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
@@ -213,6 +249,8 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
   incomes: ReturnType<typeof incomeBreakdown>
   payMethods: ReturnType<typeof payMethodBreakdown>
   catDetails: CategoryDetail[]
+  labelBanner: { count: number; sum: number; share: number } | null
+  onStartLabeling: () => void
 }) {
   const donut = useMemo(() => {
     const data = Object.entries(agg.byCategory)
@@ -245,6 +283,27 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
 
   return (
     <div className="mt-5 space-y-5">
+      {/* 大额未知标注横幅 */}
+      {labelBanner && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-brand-50 px-5 py-4 ring-1 ring-brand-200">
+          <span className="text-lg">🏷️</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-ink">
+              {labelBanner.count} 笔大额支出待标注，涉及 ¥{fmtMoney(labelBanner.sum)}
+            </div>
+            <div className="mt-0.5 text-xs text-ink-soft">
+              占总支出 {Math.round(labelBanner.share * 100)}%——它们现在被归在"其他支出"里。花一分钟告诉松鼠是什么，分析会准很多。
+            </div>
+          </div>
+          <button
+            onClick={onStartLabeling}
+            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
+          >
+            去标注 →
+          </button>
+        </div>
+      )}
+
       {/* 总览卡 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard emoji="💵" label="收入" value={agg.income} diff={momDiff(agg.income, prev?.income)} color="#059669" />
@@ -787,11 +846,14 @@ interface TxFilter {
   search: string
 }
 
-function TransactionsTab({ processed, queue, months, correctionsCount }: {
+function TransactionsTab({ processed, queue, months, correctionsCount, corrections, labelCount, onStartLabeling }: {
   processed: Transaction[]
   queue: Transaction[]
   months: string[]
   correctionsCount: number
+  corrections: Record<string, Correction>
+  labelCount: number
+  onStartLabeling: () => void
 }) {
   const setCorrection = useStore((s) => s.setCorrection)
   const selectedMonth = useStore((s) => s.selectedMonth)
@@ -837,6 +899,21 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
 
   return (
     <div className="mt-5 space-y-5">
+      {/* 大额未知标注入口 */}
+      {labelCount > 0 && queue.length === 0 && (
+        <button
+          onClick={onStartLabeling}
+          className="flex w-full items-center gap-3 rounded-2xl bg-brand-50 px-5 py-4 text-left ring-1 ring-brand-200 transition-all hover:ring-brand-400"
+        >
+          <span className="text-lg">🏷️</span>
+          <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
+            {labelCount} 笔大额支出待标注
+            <span className="ml-2 font-normal text-ink-soft">标注后分析更准</span>
+          </span>
+          <span className="text-brand-600">→</span>
+        </button>
+      )}
+
       {/* 待确认队列 */}
       {queue.length > 0 && (
         <Card className="border-l-4 border-l-amber-400 p-5">
@@ -958,6 +1035,9 @@ function TransactionsTab({ processed, queue, months, correctionsCount }: {
                   <td className="max-w-56 py-2 pr-2">
                     <div className="truncate font-medium text-ink" title={tx.item}>{tx.counterparty || tx.item}</div>
                     <div className="truncate text-xs text-ink-soft">{tx.item}</div>
+                    {corrections[tx.id]?.memo && (
+                      <div className="truncate text-[11px] text-brand-600" title={corrections[tx.id]?.memo}>📝 {corrections[tx.id]?.memo}</div>
+                    )}
                   </td>
                   <td className="py-2 pr-2">
                     <select

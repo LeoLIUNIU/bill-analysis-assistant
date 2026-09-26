@@ -38,11 +38,14 @@ interface SongshuState {
   archiveMonths: Record<string, MonthlyAggregate>
   selectedMonth: string
   importResults: ImportResult[]
+  /** 大额未知标注中用户选择跳过的流水ID */
+  skippedLabelIds: string[]
 
   importFiles: (files: File[]) => Promise<ImportResult[]>
   loadDemo: () => void
   clearDemo: () => void
   setCorrection: (id: string, corr: Correction) => void
+  skipLabel: (id: string) => void
   clearCorrection: (id: string) => void
   setSelectedMonth: (month: string) => void
   importArchiveText: (text: string) => void
@@ -58,6 +61,7 @@ export const useStore = create<SongshuState>()(
       corrections: {},
       archiveMonths: {},
       selectedMonth: '',
+      skippedLabelIds: [],
       importResults: [],
 
       importFiles: async (files) => {
@@ -103,7 +107,17 @@ export const useStore = create<SongshuState>()(
       },
 
       setCorrection: (id, corr) => {
-        set((s) => ({ corrections: { ...s.corrections, [id]: corr } }))
+        set((s) => ({
+          corrections: { ...s.corrections, [id]: { ...s.corrections[id], ...corr } },
+        }))
+      },
+
+      skipLabel: (id) => {
+        set((s) => ({
+          skippedLabelIds: s.skippedLabelIds.includes(id)
+            ? s.skippedLabelIds
+            : [...s.skippedLabelIds, id],
+        }))
       },
 
       clearCorrection: (id) => {
@@ -138,7 +152,7 @@ export const useStore = create<SongshuState>()(
 
       clearAll: () => {
         if (window.confirm('确定清空本浏览器的所有账单数据吗？此操作不可恢复。')) {
-          set({ transactions: [], corrections: {}, archiveMonths: {}, importResults: [], selectedMonth: '' })
+          set({ transactions: [], corrections: {}, archiveMonths: {}, importResults: [], selectedMonth: '', skippedLabelIds: [] })
         }
       },
 
@@ -164,6 +178,7 @@ export const useStore = create<SongshuState>()(
         corrections: s.corrections,
         archiveMonths: s.archiveMonths,
         selectedMonth: s.selectedMonth,
+        skippedLabelIds: s.skippedLabelIds,
       }),
     },
   ),

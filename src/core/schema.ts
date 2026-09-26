@@ -120,6 +120,8 @@ export interface MonthlyAggregate {
 export interface Correction {
   transferFlag?: TransferFlag | 'normal'
   category?: string
+  /** 事项备注（大额未知引导打标签时填写） */
+  memo?: string
 }
 
 export interface Archive {

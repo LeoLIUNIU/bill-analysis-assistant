@@ -13,6 +13,7 @@ import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
 import { autoCategorize } from '../src/core/categories'
+import { computeLabelCandidates, suggestCategories, unlabeledPool } from '../src/core/labeling'
 import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses, shoppingSpend } from '../src/core/analysis'
 import { buildReportHTML } from '../src/core/report'
 import { countsAsFlow, needsReview } from '../src/core/transfer'
@@ -782,6 +783,66 @@ describe('P0 修复：银行弱信息行处理', () => {
     const txs = processPipeline([bankTx[0], wxTopup], {})
     expect(txs[0].transferFlag).toBe('internal')
     expect(countsAsFlow(txs[0])).toBe(false)
+  })
+})
+
+describe('大额未知引导打标签', () => {
+  const merged = [
+    ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+    ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+    ...parseBillText(CMB_SAMPLE_CSV).transactions,
+  ]
+  const processed = processPipeline(merged, {})
+  const monthTx = processed.filter((t) => t.month === '2025-08')
+  const agg = aggregateMonth('2025-08', processed)
+
+  // 把最大几笔改成其他支出，模拟未分类场景
+  const unknownPool = monthTx.map((t) =>
+    ['房东', '去哪儿网'].includes(t.counterparty) || t.item.includes('转账支出')
+      ? { ...t, category: '其他支出' }
+      : t,
+  )
+  const aggUnknown = aggregateMonth('2025-08', unknownPool)
+
+  it('影响度筛选：大额兜底分类进清单，按金额降序且不超过5笔', () => {
+    const candidates = computeLabelCandidates(unknownPool, aggUnknown.expense)
+    expect(candidates.length).toBeGreaterThan(0)
+    expect(candidates.length).toBeLessThanOrEqual(5)
+    for (const c of candidates) {
+      expect(['其他支出', '其他收入']).toContain(c.tx.category)
+    }
+    for (let i = 1; i < candidates.length; i++) {
+      expect(candidates[i - 1].tx.amount).toBeGreaterThanOrEqual(candidates[i].tx.amount)
+    }
+  })
+
+  it('跳过的不再出现', () => {
+    const first = computeLabelCandidates(unknownPool, aggUnknown.expense)
+    const skipped = new Set(first.map((c) => c.tx.id))
+    const second = computeLabelCandidates(unknownPool, aggUnknown.expense, skipped)
+    for (const c of second) {
+      expect(skipped.has(c.tx.id)).toBe(false)
+    }
+  })
+
+  it('未分类池统计', () => {
+    const pool = unlabeledPool(unknownPool, aggUnknown.expense)
+    expect(pool.sum).toBeGreaterThan(0)
+    expect(pool.share).toBeGreaterThan(0)
+    expect(pool.share).toBeLessThanOrEqual(1)
+  })
+
+  it('分类建议：历史同商户标注优先', () => {
+    const target = unknownPool.find((t) => t.counterparty === '房东')!
+    // 模拟上月同商户已标注（不同ID、不同月份）
+    const history = [...unknownPool, { ...target, id: target.id + '-jul', month: '2025-07', time: '2025-07-01 10:00:00', category: '住房水电' }]
+    const suggestions = suggestCategories(target, history)
+    expect(suggestions[0]).toBe('住房水电')
+  })
+
+  it('无兜底分类时清单为空', () => {
+    const allLabeled = monthTx.map((t) => ({ ...t, category: t.category === '其他支出' ? '餐饮美食' : t.category }))
+    expect(computeLabelCandidates(allLabeled, agg.expense)).toEqual([])
   })
 })
 
