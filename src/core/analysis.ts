@@ -338,3 +338,58 @@ export function deepMining(txs: Transaction[], allTxs: Transaction[]): DeepMinin
 
   return { subscriptions, subscriptionMonthlyTotal, lattes, latteTotal, selfInvest, thrifty, takeawayTotal, emotional: { night, monthStart, monthEnd } }
 }
+
+/* ================= 电商平台消费识别 ================= */
+
+export interface ShopPlatformRow {
+  platform: string
+  total: number
+  count: number
+  share: number
+  topMerchants: Array<{ name: string; total: number }>
+}
+
+/** 购物/生活平台的商户名特征（从微信/支付宝/银行账单的商户与商品文本中识别） */
+const SHOP_PLATFORM_RULES: Array<{ platform: string; re: RegExp }> = [
+  { platform: '淘宝/天猫', re: /淘宝|天猫|taobao/i },
+  { platform: '京东', re: /京东|京喜|jd\.com/i },
+  { platform: '拼多多', re: /拼多多|多多买菜|pdd/i },
+  { platform: '美团', re: /美团|meituan/i },
+  { platform: '饿了么', re: /饿了么|ele\.me/i },
+]
+
+/**
+ * 电商平台消费分析：京东/淘宝天猫/拼多多/美团/饿了么的消费虽无独立账单，
+ * 但都经支付渠道结算——从账单的商户与商品文本中识别平台归属并汇总。
+ */
+export function shoppingSpend(txs: Transaction[], totalExpense: number): ShopPlatformRow[] {
+  const by = new Map<string, { total: number; count: number; merchants: Map<string, number> }>()
+  for (const t of txs) {
+    if (t.direction !== 'out' || !countsAsFlow(t)) continue
+    const text = `${t.counterparty} ${t.item}`
+    for (const rule of SHOP_PLATFORM_RULES) {
+      if (!rule.re.test(text)) continue
+      const entry = by.get(rule.platform) ?? { total: 0, count: 0, merchants: new Map<string, number>() }
+      entry.total += t.amount
+      entry.count++
+      // 商户名优先；微信账单常见脱敏横线名（"-----"），退回商品描述
+      const rawName = t.counterparty || t.item || '未知商户'
+      const mkey = /^[-—_s]+$/.test(rawName) ? t.item || rawName : rawName
+      entry.merchants.set(mkey, (entry.merchants.get(mkey) ?? 0) + t.amount)
+      by.set(rule.platform, entry)
+      break // 每笔只归入第一个命中的平台
+    }
+  }
+  return [...by.entries()]
+    .map(([platform, v]) => ({
+      platform,
+      total: Math.round(v.total * 100) / 100,
+      count: v.count,
+      topMerchants: [...v.merchants.entries()]
+        .map(([name, total]) => ({ name, total: Math.round(total * 100) / 100 }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 3),
+      share: totalExpense > 0 ? v.total / totalExpense : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+}

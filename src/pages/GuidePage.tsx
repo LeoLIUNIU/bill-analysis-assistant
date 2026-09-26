@@ -118,7 +118,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
 
       {/* ---------- Step 01 如何下载账单 ---------- */}
       <section id="step-1" className="scroll-mt-20">
-        <StepHeading no="01" title="如何下载金融APP账单" desc="点击APP图标查看对应的账单下载路径（一次查看一个，再点一次收起）。" />
+        <StepHeading no="01" title="如何下载金融APP账单" desc="点击APP图标查看对应的账单下载路径（一次查看一个，再点一次收起）。银行APP菜单常变：路径对不上时，在APP首页搜索框搜「流水」或「交易流水打印」最快。" />
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
           {FINANCE_APPS.map((app) => {
             const active = guideKey === app.key
@@ -144,8 +144,8 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
                   {app.logoChar}
                 </span>
                 <span className="text-xs font-semibold text-ink">{app.name}</span>
-                <span className={`rounded-full px-1.5 py-px text-[10px] font-medium ${app.supported ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-400'}`}>
-                  {app.supported ? '可解析' : '即将支持'}
+                <span className={`rounded-full px-1.5 py-px text-[10px] font-medium ${app.supported ? 'bg-emerald-100 text-emerald-700' : app.badge ? 'bg-brand-100 text-brand-700' : 'bg-stone-100 text-stone-400'}`}>
+                  {app.badge ?? (app.supported ? '可解析' : '即将支持')}
                 </span>
               </button>
             )

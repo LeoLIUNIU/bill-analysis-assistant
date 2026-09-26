@@ -60,11 +60,31 @@ export function sankeyOption(data: SankeyDatum): EChartsCoreOption {
   }
 }
 
-export function donutOption(data: Array<{ name: string; value: number; itemStyle?: { color: string } }>, showAmount: boolean): EChartsCoreOption {
+export interface DonutDetail {
+  count: number
+  avg: number
+  top: string
+}
+
+export function donutOption(
+  data: Array<{ name: string; value: number; itemStyle?: { color: string } }>,
+  showAmount: boolean,
+  details?: Record<string, DonutDetail>,
+): EChartsCoreOption {
   return {
     tooltip: {
       trigger: 'item',
-      valueFormatter: (v: number) => (showAmount ? `¥${v.toFixed(2)}` : '***'),
+      formatter: (params: { name: string; value: number; percent: number }) => {
+        const p = params as { name: string; value: number; percent: number }
+        const amount = showAmount ? `¥${p.value.toFixed(2)}` : '***'
+        let html = `<b>${p.name}</b><br/>金额：${amount}（${p.percent}%）`
+        const d = details?.[p.name]
+        if (d) {
+          html += `<br/>笔数：${d.count} 笔 · 单笔均值 ${showAmount ? `¥${d.avg.toFixed(2)}` : '***'}`
+          if (d.top) html += `<br/>主要商户：${showAmount ? d.top : d.top.replace(/d+(.d+)?/g, '***')}`
+        }
+        return html
+      },
     },
     legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12, color: '#57534e' } },
     series: [

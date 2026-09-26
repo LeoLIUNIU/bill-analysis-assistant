@@ -15,6 +15,7 @@ import {
 import {
   categoryDetails,
   deepMining,
+  shoppingSpend,
   incomeBreakdown,
   payMethodBreakdown,
   recurringExpenses,
@@ -25,7 +26,7 @@ import { computePersona } from '../core/persona'
 import { countsAsFlow, needsReview } from '../core/transfer'
 import { BANK_META, platformName, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
-import { Chart, donutOption, sankeyOption, trendOption, type SankeyDatum } from '../components/charts'
+import { Chart, donutOption, sankeyOption, trendOption, type DonutDetail, type SankeyDatum } from '../components/charts'
 import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney } from '../components/ui'
 
 type Tab = 'overview' | 'spending' | 'transactions'
@@ -63,6 +64,7 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   const recurring = useMemo(() => recurringExpenses(processed), [processed])
   const mining = useMemo(() => deepMining(monthTx, processed), [monthTx, processed])
   const persona = useMemo(() => computePersona(monthTx), [monthTx])
+  const shopping = useMemo(() => shoppingSpend(monthTx, agg?.expense ?? 0), [monthTx, agg])
 
   const handleDownloadReport = () => {
     if (!agg) return
@@ -168,10 +170,10 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
 
       {tab === 'overview' && (
         <OverviewTab agg={agg} prev={prev} monthTx={monthTx} allMonths={allMonths} allAggregates={allAggregates}
-          insights={insights} incomes={incomes} payMethods={payMethods} />
+          insights={insights} incomes={incomes} payMethods={payMethods} catDetails={catDetails} />
       )}
       {tab === 'spending' && (
-        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} />
+        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} shopping={shopping} />
       )}
       {tab === 'transactions' && (
         <TransactionsTab processed={processed} queue={queue} months={allMonths} correctionsCount={Object.keys(corrections).length} />
@@ -201,7 +203,7 @@ function monthChip(active: boolean): string {
 
 /* ================= Tab 1: 总览 ================= */
 
-function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods }: {
+function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
@@ -210,13 +212,22 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
   insights: Insight[]
   incomes: ReturnType<typeof incomeBreakdown>
   payMethods: ReturnType<typeof payMethodBreakdown>
+  catDetails: CategoryDetail[]
 }) {
   const donut = useMemo(() => {
     const data = Object.entries(agg.byCategory)
       .map(([name, value]) => ({ name, value, itemStyle: { color: categoryDef(name).color } }))
       .sort((a, b) => b.value - a.value)
-    return donutOption(data, true)
-  }, [agg])
+    const details: Record<string, DonutDetail> = {}
+    for (const c of catDetails) {
+      details[c.name] = {
+        count: c.count,
+        avg: c.avg,
+        top: c.topMerchants[0] ? `${c.topMerchants[0].name} ¥${c.topMerchants[0].total.toLocaleString('zh-CN')}` : '',
+      }
+    }
+    return donutOption(data, true, details)
+  }, [agg, catDetails])
 
   const trend = useMemo(() => {
     const months = allMonths.slice(0, 12).reverse()
@@ -349,13 +360,14 @@ function InsightCard({ ins }: { ins: Insight }) {
 
 /* ================= Tab 2: 花费分析 ================= */
 
-function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining }: {
+function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shopping }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
   catDetails: CategoryDetail[]
   recurring: ReturnType<typeof recurringExpenses>
   mining: ReturnType<typeof deepMining>
+  shopping: ReturnType<typeof shoppingSpend>
 }) {
   const [expanded, setExpanded] = useState<string | null>(catDetails[0]?.name ?? null)
 
@@ -373,6 +385,30 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining }: {
     <div className="mt-5 space-y-5">
       {/* 深度挖掘 */}
       <DeepMiningCard mining={mining} expense={agg.expense} />
+
+      {/* 电商平台消费 */}
+      {shopping.length > 0 && (
+        <Card className="p-5">
+          <SectionTitle
+            emoji="🛍️"
+            title="电商平台消费"
+            desc="京东/淘宝天猫/拼多多/美团/饿了么的消费没有独立账单，但已从支付渠道账单的商户信息中自动识别汇总。"
+          />
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {shopping.map((s) => (
+              <div key={s.platform} className="rounded-xl bg-slate-50 px-4 py-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-bold text-ink">{s.platform}</span>
+                  <span className="text-sm font-bold text-brand-600">¥{fmtMoney(s.total)}</span>
+                </div>
+                <div className="mt-1 text-xs text-ink-soft">
+                  {s.count} 笔 · 占支出 {Math.round(s.share * 100)}% · 主消费：{s.topMerchants[0]?.name ?? '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* 固定支出 */}
       {recurring.length > 0 && (

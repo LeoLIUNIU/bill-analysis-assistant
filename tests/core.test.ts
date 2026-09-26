@@ -11,7 +11,7 @@ import { parseBankDate } from '../src/core/parsers/bank'
 import { aggregateMonth, momDiff, prevMonth } from '../src/core/month'
 import { computePersona } from '../src/core/persona'
 import { amountBuckets, categoryRows, generateInsights, weekdaySums } from '../src/core/insights'
-import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses } from '../src/core/analysis'
+import { categoryDetails, deepMining, incomeBreakdown, payMethodBreakdown, recurringExpenses, shoppingSpend } from '../src/core/analysis'
 import { buildReportHTML } from '../src/core/report'
 import { countsAsFlow, needsReview } from '../src/core/transfer'
 
@@ -669,6 +669,31 @@ describe('跨渠道去重', () => {
     const row = refixed.find((t) => t.id === bankRow.id)!
     expect(row.transferFlag).toBeNull()
     expect(countsAsFlow(row)).toBe(true)
+  })
+})
+
+describe('电商平台消费识别', () => {
+  it('按商户名识别平台归属并汇总（演示数据含美团/京东）', () => {
+    const merged = [
+      ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+      ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+      ...parseBillText(CMB_SAMPLE_CSV).transactions,
+    ]
+    const processed = processPipeline(merged, {})
+    const agg = aggregateMonth('2025-08', processed)
+    const shops = shoppingSpend(processed.filter((t) => t.month === '2025-08'), agg.expense)
+    const meituan = shops.find((s) => s.platform === '美团')!
+    expect(meituan).toBeDefined()
+    // 微信美团外卖26.5（已计）+ 招行财付通快捷支付26.5（已对冲剔除）+ 支付宝美团退款35是收入不计
+    expect(meituan.total).toBe(26.5)
+    expect(meituan.count).toBe(1)
+    const jd = shops.find((s) => s.platform === '京东')!
+    expect(jd.total).toBe(199) // 京东商城-蓝牙耳机
+  })
+
+  it('无相关消费时返回空数组', () => {
+    const merged = parseBillText(WECHAT_SAMPLE_CSV).transactions.filter((t) => t.direction === 'in')
+    expect(shoppingSpend(merged, 100)).toEqual([])
   })
 })
 
