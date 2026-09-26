@@ -209,15 +209,15 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
       </div>
 
       {/* Tab 栏 */}
-      <div className="mt-4 flex items-center gap-1.5 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/70">
+      <div className="neu-inset mt-4 flex items-center gap-1.5 rounded-2xl p-1.5">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+            className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-300 ${
               tab === t.key
-                ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-200'
-                : 'text-ink-soft hover:bg-slate-50'
+                ? 'neu-raised accent-text'
+                : 'text-ink-soft hover:text-ink'
             }`}
           >
             <span className="mr-1">{t.emoji}</span>{t.label}
@@ -399,8 +399,8 @@ function MonthBar({ months, selected, onSelect }: { months: string[]; selected: 
 }
 
 function monthChip(active: boolean): string {
-  return `rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
-    active ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30' : 'bg-white text-ink-soft ring-1 ring-slate-200 hover:ring-brand-300'
+  return `rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300 ${
+    active ? 'neu-inset accent-text font-semibold' : 'neu-raised neu-hover text-ink-soft'
   }`
 }
 
@@ -457,7 +457,7 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
     <div className="mt-5 space-y-5">
       {/* 大额未知标注横幅 */}
       {labelBanner && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-brand-50 px-5 py-4 ring-1 ring-brand-200">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-canvas px-5 py-4 accent-bar">
           <span className="text-lg">🏷️</span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold text-ink">
@@ -1139,7 +1139,7 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
       {labelCount > 0 && queue.length === 0 && (
         <button
           onClick={onStartLabeling}
-          className="flex w-full items-center gap-3 rounded-2xl bg-brand-50 px-5 py-4 text-left ring-1 ring-brand-200 transition-all hover:ring-brand-400"
+          className="neu-raised neu-hover flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-left"
         >
           <span className="text-lg">🏷️</span>
           <span className="min-w-0 flex-1 text-sm font-semibold text-ink">

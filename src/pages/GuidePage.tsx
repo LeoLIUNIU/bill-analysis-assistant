@@ -60,7 +60,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
     <div className="mx-auto max-w-4xl">
       {/* ---------- Hero ---------- */}
       <section className="pb-10 pt-10 text-center sm:pt-14">
-        <div className="mx-auto mb-5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-soft ring-1 ring-slate-200">
+        <div className="mx-auto mb-5 inline-flex items-center gap-1.5 neu-inset-sm px-3 py-1 text-xs font-medium text-ink-soft">
           🔒 纯本地分析 · 数据永不上传
         </div>
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-ink sm:text-5xl">
@@ -76,30 +76,30 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => { loadDemo(); navigate('analysis') }}
-            className="rounded-xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:bg-brand-600"
+            className="neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold accent-text"
           >
             🎮 一键体验（演示数据）
           </button>
           <button
             onClick={scrollToStep1}
-            className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-ink ring-1 ring-stone-200 transition-all hover:-translate-y-0.5 hover:ring-stone-300"
+            className="neu-raised neu-hover rounded-xl px-6 py-3 text-sm font-semibold text-ink"
           >
             开始导入我的账单
           </button>
           {hasData && (
             <button
               onClick={analyze}
-              className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-600"
+              className="neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold text-emerald-700"
             >
               🚀 一键分析 →
             </button>
           )}
         </div>
         <div className="mt-7 flex flex-wrap justify-center gap-2 text-xs text-ink-soft">
-          <span className="rounded-full bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700">🔒 账单只在浏览器本地解析</span>
-          <span className="rounded-full bg-orange-50 px-3 py-1.5 font-medium text-orange-700">🔁 转账还款不算收支</span>
-          <span className="rounded-full bg-sky-50 px-3 py-1.5 font-medium text-sky-700">🐾 消费人格报告</span>
-          <span className="rounded-full bg-stone-100 px-3 py-1.5 font-medium text-stone-500">无账号 · 无上传 · 无广告</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-emerald-700">🔒 账单只在浏览器本地解析</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-orange-700">🔁 转账还款不算收支</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-sky-700">🐾 消费人格报告</span>
+          <span className="neu-inset-sm px-3 py-1.5 font-medium text-ink-soft">无账号 · 无上传 · 无广告</span>
         </div>
       </section>
 
@@ -126,10 +126,10 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
               <button
                 key={app.key}
                 onClick={() => toggleApp(app.key)}
-                className={`group relative flex flex-col items-center gap-2 rounded-2xl p-3 pb-2.5 transition-all ${
+                className={`group relative flex flex-col items-center gap-2 rounded-2xl p-3 pb-2.5 transition-all duration-300 ${
                   active
-                    ? 'bg-brand-50 ring-2 ring-brand-500'
-                    : 'bg-white ring-1 ring-stone-200 hover:-translate-y-0.5 hover:shadow-md'
+                    ? 'neu-inset'
+                    : 'neu-raised neu-hover'
                 }`}
               >
                 {active && (
@@ -254,7 +254,7 @@ export function GuidePage({ hasData }: { hasData: boolean }) {
               </div>
               <button
                 onClick={analyze}
-                className="ml-auto rounded-xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:bg-brand-600"
+                className="ml-auto neu-raised neu-hover neu-press rounded-xl px-6 py-3 text-sm font-bold accent-text"
               >
                 🚀 一键分析 →
               </button>

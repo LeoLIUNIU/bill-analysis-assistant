@@ -50,7 +50,7 @@ export function sankeyOption(data: SankeyDatum): EChartsCoreOption {
         emphasis: { focus: 'adjacency' },
         nodeGap: 12,
         nodeWidth: 14,
-        label: { fontSize: 12, color: '#57534e' },
+        label: { fontSize: 12, color: '#6d7590' },
         lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
         itemStyle: { borderWidth: 0, borderRadius: 3 },
         data: data.nodes,
@@ -86,7 +86,7 @@ export function donutOption(
         return html
       },
     },
-    legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12, color: '#57534e' } },
+    legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12, color: '#6d7590' } },
     series: [
       {
         type: 'pie',
@@ -109,10 +109,10 @@ export function trendOption(
 ): EChartsCoreOption {
   return {
     tooltip: { trigger: 'axis', valueFormatter: (v: number) => (showAmount ? `¥${v.toFixed(2)}` : '***') },
-    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#57534e' } },
+    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#6d7590' } },
     grid: { left: 8, right: 8, top: 32, bottom: 0, containLabel: true },
-    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } }, axisLabel: { formatter: (v: number) => (v >= 10000 ? `${v / 10000}w` : String(v)) } },
+    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#c3c9d6' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#d8dde8' } }, axisLabel: { formatter: (v: number) => (v >= 10000 ? `${v / 10000}w` : String(v)) } },
     series: [
       { name: '支出', type: 'bar', data: expense, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
       { name: '收入', type: 'bar', data: income, itemStyle: { color: '#a7f3d0', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 22 },
@@ -128,10 +128,10 @@ export function multiLineOption(
 ): EChartsCoreOption {
   return {
     tooltip: { trigger: 'axis', valueFormatter: (v: number) => (showAmount ? `¥${Number(v).toFixed(2)}` : '***') },
-    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#57534e' } },
+    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#6d7590' } },
     grid: { left: 8, right: 8, top: 32, bottom: 0, containLabel: true },
-    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } } },
+    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#c3c9d6' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#d8dde8' } } },
     series: series.map((s) => ({
       name: s.name, type: 'line', data: s.data, smooth: true,
       symbolSize: 6, lineStyle: { width: 2.5, color: s.color }, itemStyle: { color: s.color },
@@ -147,10 +147,10 @@ export function stackedBarOption(
 ): EChartsCoreOption {
   return {
     tooltip: { trigger: 'axis', valueFormatter: (v: number) => (showAmount ? `¥${Number(v).toFixed(2)}` : '***') },
-    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#57534e' } },
+    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#6d7590' } },
     grid: { left: 8, right: 8, top: 32, bottom: 0, containLabel: true },
-    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } } },
+    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#c3c9d6' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#d8dde8' } } },
     series: series.map((s) => ({
       name: s.name, type: 'bar', stack: 'total', data: s.data,
       itemStyle: { color: s.color }, barMaxWidth: 26,

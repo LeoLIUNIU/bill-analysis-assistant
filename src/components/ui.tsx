@@ -5,7 +5,7 @@ import type { Transaction } from '../core/schema'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/70 ${className}`}>
+    <div className={`neu-raised ${className}`}>
       {children}
     </div>
   )

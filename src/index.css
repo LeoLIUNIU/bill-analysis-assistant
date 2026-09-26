@@ -6,12 +6,13 @@
   --color-brand-200: #c7d2fe;
   --color-brand-300: #a5b4fc;
   --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-canvas: #f5f6fa;
-  --color-ink: #1a1a2e;
-  --color-ink-soft: #8a8fa3;
+  --color-brand-500: #6d5dfc;
+  --color-brand-600: #5b4ae0;
+  --color-brand-700: #4a3ac4;
+  --color-canvas: #e0e5ec;
+  --color-canvas-deep: #d1d9e6;
+  --color-ink: #3a4160;
+  --color-ink-soft: #6d7590;
   --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
@@ -24,4 +25,53 @@ body {
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* ===== 新拟态表面系统：元素从同一块表面挤出/压入，永不悬浮 ===== */
+
+/* 凸起：可点击卡片/容器 */
+.neu-raised {
+  background: var(--color-canvas);
+  border-radius: 20px;
+  box-shadow: 8px 8px 16px #b8bcc2, -8px -8px 16px #ffffff;
+}
+
+/* 平坦：中性表面（比凸起阴影弱一半） */
+.neu-flat {
+  background: var(--color-canvas);
+  border-radius: 16px;
+  box-shadow: 4px 4px 8px #b8bcc2, -4px -4px 8px #ffffff;
+}
+
+/* 凹陷：输入框/进度轨道/展示井 */
+.neu-inset {
+  background: var(--color-canvas-deep);
+  border-radius: 14px;
+  box-shadow: inset 4px 4px 8px #b8bcc2, inset -4px -4px 8px #ffffff;
+}
+
+/* 小号凹陷（行内元素） */
+.neu-inset-sm {
+  background: var(--color-canvas-deep);
+  border-radius: 10px;
+  box-shadow: inset 2px 2px 5px #b8bcc2, inset -2px -2px 5px #ffffff;
+}
+
+/* 交互状态：300ms 过渡；悬停阴影减半，按下转凹陷 */
+.neu-hover {
+  transition: box-shadow 300ms ease-in-out;
+}
+.neu-hover:hover {
+  box-shadow: 4px 4px 8px #b8bcc2, -4px -4px 8px #ffffff;
+}
+.neu-hover:active {
+  box-shadow: inset 4px 4px 8px #b8bcc2, inset -4px -4px 8px #ffffff;
+}
+
+/* 强调色文字（新拟态中强调色只用于文字/细条） */
+.accent-text {
+  color: var(--color-brand-500);
+}
+.accent-bar {
+  border-left: 4px solid var(--color-brand-500);
 }

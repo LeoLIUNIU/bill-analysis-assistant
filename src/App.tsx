@@ -32,10 +32,10 @@ export default function App() {
   return (
     <div className="flex min-h-svh flex-col bg-canvas">
       {/* 顶栏 */}
-      <header className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/85 backdrop-blur">
+      <header className="sticky top-0 z-20 bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <button className="flex shrink-0 items-center gap-2.5" onClick={() => navigate('guide')}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-brand-400 to-brand-600 shadow-sm">
+            <span className="neu-inset flex h-8 w-8 items-center justify-center rounded-[10px]">
               <svg width="16" height="16" viewBox="0 0 100 100" aria-hidden>
                 <rect x="24" y="52" width="12" height="24" rx="4" fill="#fff" opacity="0.95" />
                 <rect x="44" y="36" width="12" height="40" rx="4" fill="#fff" opacity="0.95" />
@@ -52,12 +52,12 @@ export default function App() {
                 <button
                   key={n.key}
                   onClick={() => !disabled && navigate(n.key)}
-                  className={`relative rounded-full px-3 py-1.5 text-sm font-medium transition-all sm:px-4 ${
+                  className={`relative rounded-full px-3 py-1.5 text-sm font-semibold transition-all duration-300 sm:px-4 ${
                     active
-                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30'
+                      ? 'neu-inset accent-text'
                       : disabled
-                        ? 'cursor-not-allowed text-slate-300'
-                        : 'text-ink-soft hover:bg-slate-100 hover:text-ink'
+                        ? 'cursor-not-allowed text-slate-400'
+                        : 'text-ink-soft hover:text-ink'
                   }`}
                 >
                   <span className="mr-1">{n.emoji}</span>
@@ -83,7 +83,7 @@ export default function App() {
       </main>
 
       {/* 页脚 */}
-      <footer className="border-t border-slate-200/60 bg-white/70">
+      <footer className="neu-inset" style={{ borderRadius: 0 }}>
         <div className="mx-auto max-w-5xl px-4 py-4 text-center text-xs leading-relaxed text-ink-soft">
           账单分析助手 · 账单仅在本地浏览器解析与存储，永不上传服务器 · 内部转账/还款自动对冲，不计入收支 · 分析结果仅供个人参考
           <br />
