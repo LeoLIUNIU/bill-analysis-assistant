@@ -846,6 +846,40 @@ describe('大额未知引导打标签', () => {
   })
 })
 
+describe('P1/P3 洞察分级与文案', () => {
+  const merged = [
+    ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+    ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+    ...parseBillText(CMB_SAMPLE_CSV).transactions,
+  ]
+  const processed = processPipeline(merged, {})
+  const monthTx = processed.filter((t) => t.month === '2025-08')
+  const agg = aggregateMonth('2025-08', processed)
+
+  it('洞察按优先级排序：口径类（去重）在结论/结构之前', () => {
+    const insights = generateInsights(monthTx, agg, undefined, '2025-08')
+    const dedupIdx = insights.findIndex((x) => x.id === 'dedup')
+    const topCatIdx = insights.findIndex((x) => x.id === 'top-cat')
+    expect(dedupIdx).toBeGreaterThanOrEqual(0)
+    expect(dedupIdx).toBeLessThan(topCatIdx)
+    expect(insights.find((x) => x.id === 'dedup')!.group).toBe('口径')
+  })
+
+  it('全部范围时结余文案自适应', () => {
+    const insights = generateInsights(monthTx, agg, undefined, '全部')
+    const savings = insights.find((x) => x.id === 'savings')!
+    expect(savings.title).toContain('统计期内')
+  })
+
+  it('去重洞察带可展开清单', () => {
+    const insights = generateInsights(monthTx, agg)
+    const dedup = insights.find((x) => x.id === 'dedup')!
+    expect(dedup.items).toBeDefined()
+    expect(dedup.items!.length).toBeGreaterThan(0)
+    expect(dedup.items![0].amount).toBeGreaterThan(0)
+  })
+})
+
 describe('动物人格', () => {
   const merged = [
     ...parseBillText(WECHAT_SAMPLE_CSV).transactions,

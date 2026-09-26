@@ -235,6 +235,12 @@ const THRIFTY_WORDS = ['超市', '盒马', '叮咚', '买菜', '生鲜', '山姆
 /** 弹性消费分类（情绪消费只看这些；房租水电话费不算情绪） */
 const DISCRETIONARY = new Set(['餐饮美食', '文娱休闲', '服饰美容', '日常购物', '其他支出'])
 
+
+/** 微信账单常见脱敏横线名（"-----"），展示时退回商品描述 */
+function cleanName(name: string, fallback: string): string {
+  return /^[-—_s]+$/.test(name.trim()) ? fallback : name
+}
+
 function emptyWindow(): WindowStat {
   return { total: 0, count: 0, examples: [] }
 }
@@ -281,7 +287,7 @@ export function deepMining(txs: Transaction[], allTxs: Transaction[]): DeepMinin
     const avg = total / list.length
     if (list.length >= LATTE_MIN_COUNT && avg <= LATTE_MAX_AVG) {
       lattes.push({
-        name,
+        name: cleanName(name, list[0].item || '未知商户'),
         count: list.length,
         total: Math.round(total * 100) / 100,
         avg: Math.round(avg * 100) / 100,
@@ -328,7 +334,7 @@ export function deepMining(txs: Transaction[], allTxs: Transaction[]): DeepMinin
     if (win) {
       win.total += t.amount
       win.count++
-      win.examples.push({ name: t.counterparty || t.item, amount: t.amount, date: t.time.slice(5, 10) })
+      win.examples.push({ name: cleanName(t.counterparty || t.item, t.item || '未知'), amount: t.amount, date: t.time.slice(5, 10) })
     }
   }
   for (const w of [night, monthStart, monthEnd]) {

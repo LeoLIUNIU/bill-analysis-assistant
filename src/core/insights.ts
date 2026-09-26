@@ -6,12 +6,26 @@ import { countsAsFlow } from './transfer'
  * 每条洞察都有数据依据（detail 里带具体数字），宁可少说、不说错话。
  */
 
+export type InsightGroup = '口径' | '结论' | '异常' | '结构' | '习惯' | '明细'
+
+export interface InsightItem {
+  main: string
+  sub: string
+  amount: number
+}
+
 export interface Insight {
   id: string
   kind: 'good' | 'warn' | 'info'
   icon: string
   title: string
   detail: string
+  /** 分组标签：口径（统计口径说明）/结论/异常/结构/习惯/明细 */
+  group?: InsightGroup
+  /** 排序权重，小者优先展示（未指定时按生成顺序） */
+  priority?: number
+  /** 可展开的明细清单（如跨渠道去重的对冲清单） */
+  items?: InsightItem[]
 }
 
 const fmt = (n: number) => n.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
@@ -54,7 +68,7 @@ export function generateInsights(
     } else {
       out.push({
         id: 'savings', kind: 'warn', icon: '🫠',
-        title: '本期支出超过了收入',
+        title: label === '全部' ? '统计期内支出超过了收入' : '本期支出超过了收入',
         detail: `支出 ¥${fmt(expense)} > 收入 ¥${fmt(income)}，缺口 ¥${fmt(expense - income)}。若是大件或集中缴费属正常，否则值得看看钱花哪了。`,
       })
     }
@@ -85,10 +99,19 @@ export function generateInsights(
   )
   if (deduped.length > 0) {
     const dedupSum = deduped.reduce((s, t) => s + t.amount, 0)
+    const items = deduped.slice(0, 8).map((t) => {
+      const app = txs.find((x) => x.id === t.pairId)
+      return {
+        main: `${t.time.slice(5, 10)} ${(t.counterparty || t.item || '未知').slice(0, 14)}`,
+        sub: app ? `对应App侧：${(app.counterparty || app.item || '').slice(0, 14)}` : '对应App侧消费记录',
+        amount: t.amount,
+      }
+    })
     out.push({
       id: 'dedup', kind: 'good', icon: '🔀',
       title: `${deduped.length} 笔跨渠道重复已对冲（¥${fmt(dedupSum)}）`,
       detail: '这些消费同时出现在银行流水和微信/支付宝账单里，分析时只保留了信息更全的App侧记录，避免重复计算。',
+      items,
     })
   }
 
@@ -235,6 +258,31 @@ export function generateInsights(
       detail: '这些已自动从支出里冲减，不用手动处理。',
     })
   }
+
+  // 分组与优先级：口径(1) → 结论(2) → 异常/结构(3) → 习惯/明细(5+)
+  const META: Record<string, { group: InsightGroup; priority: number }> = {
+    dedup: { group: '口径', priority: 1 },
+    refund: { group: '口径', priority: 1 },
+    savings: { group: '结论', priority: 2 },
+    'no-income': { group: '结论', priority: 2 },
+    mom: { group: '结论', priority: 2 },
+    'top-cat': { group: '结构', priority: 3 },
+    dining: { group: '结构', priority: 3 },
+    fixed: { group: '结构', priority: 3 },
+    night: { group: '习惯', priority: 5 },
+    weekend: { group: '习惯', priority: 5 },
+    style: { group: '习惯', priority: 5 },
+    biggest: { group: '明细', priority: 5 },
+    social: { group: '明细', priority: 6 },
+  }
+  for (const ins of out) {
+    const meta = META[ins.id]
+    if (meta) {
+      ins.group = meta.group
+      ins.priority = meta.priority
+    }
+  }
+  out.sort((a, b) => (a.priority ?? 9) - (b.priority ?? 9))
 
   return out.slice(0, 8)
 }

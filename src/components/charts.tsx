@@ -119,3 +119,41 @@ export function trendOption(
     ],
   }
 }
+
+/** 多序列折线图（分类月度趋势等） */
+export function multiLineOption(
+  months: string[],
+  series: Array<{ name: string; data: number[]; color: string }>,
+  showAmount: boolean,
+): EChartsCoreOption {
+  return {
+    tooltip: { trigger: 'axis', valueFormatter: (v: number) => (showAmount ? `¥${Number(v).toFixed(2)}` : '***') },
+    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#57534e' } },
+    grid: { left: 8, right: 8, top: 32, bottom: 0, containLabel: true },
+    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } } },
+    series: series.map((s) => ({
+      name: s.name, type: 'line', data: s.data, smooth: true,
+      symbolSize: 6, lineStyle: { width: 2.5, color: s.color }, itemStyle: { color: s.color },
+    })),
+  }
+}
+
+/** 平台月度堆叠柱图（电商平台消费趋势） */
+export function stackedBarOption(
+  months: string[],
+  series: Array<{ name: string; data: number[]; color: string }>,
+  showAmount: boolean,
+): EChartsCoreOption {
+  return {
+    tooltip: { trigger: 'axis', valueFormatter: (v: number) => (showAmount ? `¥${Number(v).toFixed(2)}` : '***') },
+    legend: { top: 0, itemHeight: 10, itemWidth: 14, textStyle: { fontSize: 12, color: '#57534e' } },
+    grid: { left: 8, right: 8, top: 32, bottom: 0, containLabel: true },
+    xAxis: { type: 'category', data: months, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e7e5e4' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f5f5f4' } } },
+    series: series.map((s) => ({
+      name: s.name, type: 'bar', stack: 'total', data: s.data,
+      itemStyle: { color: s.color }, barMaxWidth: 26,
+    })),
+  }
+}

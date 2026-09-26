@@ -28,7 +28,7 @@ import { LabelingModal } from '../components/LabelingModal'
 import { countsAsFlow, needsReview } from '../core/transfer'
 import { BANK_META, platformName, type Correction, type MonthlyAggregate, type Platform, type Transaction } from '../core/schema'
 import { downloadTextFile } from '../core/archive'
-import { Chart, donutOption, sankeyOption, trendOption, type DonutDetail, type SankeyDatum } from '../components/charts'
+import { Chart, donutOption, multiLineOption, sankeyOption, stackedBarOption, trendOption, type DonutDetail, type SankeyDatum } from '../components/charts'
 import { Card, EmptyState, FlagChip, PlatformBadge, SectionTitle, fmtMoney, fmtTxTime } from '../components/ui'
 
 type Tab = 'overview' | 'spending' | 'transactions'
@@ -83,6 +83,53 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
   }
   const persona = useMemo(() => computePersona(monthTx), [monthTx])
   const shopping = useMemo(() => shoppingSpend(monthTx, agg?.expense ?? 0), [monthTx, agg])
+  const budgetMonthly = useStore((s) => s.budgetMonthly)
+  const setBudgetMonthly = useStore((s) => s.setBudgetMonthly)
+  // 分类月度趋势：Top5 类目 × 月份
+  const catTrend = useMemo(() => {
+    const months = allMonths.slice(0, 12).reverse()
+    if (months.length < 2) return null
+    const totals: Record<string, number> = {}
+    for (const m of months) {
+      for (const [cat, v] of Object.entries(allAggregates[m]?.byCategory ?? {})) {
+        totals[cat] = (totals[cat] ?? 0) + v
+      }
+    }
+    const top5 = Object.entries(totals).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([n]) => n)
+    return {
+      months,
+      series: top5.map((cat) => ({
+        name: cat,
+        color: categoryDef(cat).color,
+        data: months.map((m) => Math.round((allAggregates[m]?.byCategory[cat] ?? 0) * 100) / 100),
+      })),
+    }
+  }, [allMonths, allAggregates])
+  // 电商平台月度堆叠
+  const shopTrend = useMemo(() => {
+    const months = allMonths.slice(0, 12).reverse()
+    if (months.length < 2) return null
+    const platformTotals: Record<string, number> = {}
+    const perMonth = months.map((m) => {
+      const rows = shoppingSpend(processed.filter((t) => t.month === m), 0)
+      const rec: Record<string, number> = {}
+      for (const r of rows) {
+        rec[r.platform] = r.total
+        platformTotals[r.platform] = (platformTotals[r.platform] ?? 0) + r.total
+      }
+      return rec
+    })
+    const topPlatforms = Object.entries(platformTotals).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([n]) => n)
+    const palette = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9']
+    return {
+      months,
+      series: topPlatforms.map((p, idx) => ({
+        name: p,
+        color: palette[idx % palette.length],
+        data: perMonth.map((rec) => Math.round((rec[p] ?? 0) * 100) / 100),
+      })),
+    }
+  }, [allMonths, processed])
 
   const handleDownloadReport = () => {
     if (!agg) return
@@ -189,6 +236,8 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
       {tab === 'overview' && (
         <OverviewTab agg={agg} prev={prev} monthTx={monthTx} allMonths={allMonths} allAggregates={allAggregates}
           insights={insights} incomes={incomes} payMethods={payMethods} catDetails={catDetails}
+          budget={{ monthly: budgetMonthly, monthExpense: agg.expense, monthCount: Math.max(1, allMonths.length), scope: selectedMonth || '全部' }}
+          onSetBudget={setBudgetMonthly}
           labelBanner={labelCandidates.length > 0 ? {
             count: labelCandidates.length,
             sum: labelCandidates.reduce((s, c) => s + c.tx.amount, 0),
@@ -197,7 +246,8 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
           onStartLabeling={openLabeling} />
       )}
       {tab === 'spending' && (
-        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} shopping={shopping} />
+        <SpendingTab agg={agg} prev={prev} monthTx={monthTx} catDetails={catDetails} recurring={recurring} mining={mining} shopping={shopping}
+          catTrend={catTrend} shopTrend={shopTrend} />
       )}
       {tab === 'transactions' && (
         <TransactionsTab processed={processed} queue={queue} months={allMonths} correctionsCount={Object.keys(corrections).length}
@@ -215,6 +265,73 @@ export function AnalysisPage({ hasData }: { hasData: boolean }) {
           />
         )}
     </div>
+  )
+}
+
+
+function BudgetCard({ budget, onSet }: {
+  budget: { monthly: number; monthExpense: number; monthCount: number; scope: string }
+  onSet: (v: number) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [input, setInput] = useState('')
+
+  if (!budget.monthly && !editing) {
+    return (
+      <button
+        onClick={() => { setInput(''); setEditing(true) }}
+        className="flex w-full items-center gap-2 rounded-2xl bg-white px-5 py-3 text-left text-sm text-ink-soft ring-1 ring-dashed ring-slate-300 transition-all hover:ring-brand-400"
+      >
+        🎯 设定月度预算，让分析带一个行动目标
+      </button>
+    )
+  }
+
+  // 口径：单月=当月支出；全部=月均支出
+  const baseline = budget.scope === '全部'
+    ? budget.monthExpense / budget.monthCount
+    : budget.monthExpense
+  const pct = budget.monthly > 0 ? Math.min(150, (baseline / budget.monthly) * 100) : 0
+  const over = baseline > budget.monthly
+
+  return (
+    <Card className="p-4">
+      {editing ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-ink">🎯 每月预算</span>
+          <input
+            autoFocus
+            type="number"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="输入金额"
+            className="w-32 rounded-lg border-0 bg-slate-100 px-3 py-1.5 outline-none ring-1 ring-transparent focus:ring-brand-400"
+          />
+          <button
+            onClick={() => { onSet(Number.parseFloat(input) || 0); setEditing(false) }}
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            保存
+          </button>
+          <button onClick={() => setEditing(false)} className="px-2 py-1.5 text-xs text-ink-soft hover:text-ink">取消</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="font-semibold text-ink">🎯 月度预算 ¥{budget.monthly.toLocaleString('zh-CN')}</span>
+          <div className="h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full rounded-full ${over ? 'bg-red-400' : pct > 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+          <span className={`font-bold ${over ? 'text-red-500' : 'text-emerald-600'}`}>
+            {budget.scope === '全部' ? '月均' : budget.scope} ¥{baseline.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+          </span>
+          <span className="text-xs text-ink-soft">{Math.round(pct)}%{over ? ' · 超支' : ''}</span>
+          <button onClick={() => setEditing(true)} className="ml-auto text-xs text-ink-soft hover:text-ink">修改</button>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -239,7 +356,7 @@ function monthChip(active: boolean): string {
 
 /* ================= Tab 1: 总览 ================= */
 
-function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails, labelBanner, onStartLabeling }: {
+function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, incomes, payMethods, catDetails, labelBanner, onStartLabeling, budget, onSetBudget }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
@@ -251,6 +368,8 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
   catDetails: CategoryDetail[]
   labelBanner: { count: number; sum: number; share: number } | null
   onStartLabeling: () => void
+  budget: { monthly: number; monthExpense: number; monthCount: number; scope: string }
+  onSetBudget: (v: number) => void
 }) {
   const donut = useMemo(() => {
     const data = Object.entries(agg.byCategory)
@@ -303,6 +422,9 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
           </button>
         </div>
       )}
+
+      {/* 预算 */}
+      <BudgetCard budget={budget} onSet={onSetBudget} />
 
       {/* 总览卡 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -357,6 +479,11 @@ function OverviewTab({ agg, prev, monthTx, allMonths, allAggregates, insights, i
             <Card className="p-5">
               <SectionTitle emoji="💳" title="支付方式" desc="钱主要从哪个口袋出去" />
               <BreakdownList rows={payMethods} total={agg.expense} colors={['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff', '#eef2ff']} />
+              {payMethods.some((p) => p.name === '未标注') && (
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+                  「未标注」多为微信零钱或其他未记录支付方式的交易；银行渠道行已统一显示为银行名。
+                </p>
+              )}
             </Card>
           )}
         </div>
@@ -399,6 +526,7 @@ function BreakdownList({ rows, total, colors }: {
 }
 
 function InsightCard({ ins }: { ins: Insight }) {
+  const [open, setOpen] = useState(false)
   const styles = {
     good: { bar: '#10b981', bg: '#ecfdf5' },
     warn: { bar: '#f59e0b', bg: '#fffbeb' },
@@ -408,9 +536,38 @@ function InsightCard({ ins }: { ins: Insight }) {
     <div className="rounded-xl p-3.5" style={{ backgroundColor: styles.bg, boxShadow: `inset 3px 0 0 ${styles.bar}` }}>
       <div className="flex items-start gap-2">
         <span className="text-lg leading-none">{ins.icon}</span>
-        <div className="min-w-0">
-          <div className="text-sm font-bold text-ink">{ins.title}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-bold text-ink">{ins.title}</span>
+            {ins.group && (
+              <span className="rounded bg-white/70 px-1.5 py-px text-[10px] font-semibold text-ink-soft ring-1 ring-slate-200/80">
+                {ins.group}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">{ins.detail}</p>
+          {ins.items && ins.items.length > 0 && (
+            <>
+              <button
+                className="mt-1.5 text-[11px] font-medium text-brand-600 hover:underline"
+                onClick={() => setOpen(!open)}
+              >
+                {open ? '收起清单 ▴' : '查看对冲清单 ▾'}
+              </button>
+              {open && (
+                <div className="mt-2 space-y-1.5 rounded-lg bg-white/80 p-2.5">
+                  {ins.items.map((it, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-28 shrink-0 truncate text-ink">{it.main}</span>
+                      <span className="min-w-0 flex-1 truncate text-slate-400">{it.sub}</span>
+                      <span className="shrink-0 font-semibold text-ink">¥{it.amount.toLocaleString('zh-CN')}</span>
+                    </div>
+                  ))}
+                  {ins.title.includes('44') || ins.title.includes('10') ? null : null}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -419,7 +576,7 @@ function InsightCard({ ins }: { ins: Insight }) {
 
 /* ================= Tab 2: 花费分析 ================= */
 
-function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shopping }: {
+function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shopping, catTrend, shopTrend }: {
   agg: MonthlyAggregate
   prev?: MonthlyAggregate
   monthTx: Transaction[]
@@ -427,6 +584,8 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
   recurring: ReturnType<typeof recurringExpenses>
   mining: ReturnType<typeof deepMining>
   shopping: ReturnType<typeof shoppingSpend>
+  catTrend: { months: string[]; series: Array<{ name: string; data: number[]; color: string }> } | null
+  shopTrend: { months: string[]; series: Array<{ name: string; data: number[]; color: string }> } | null
 }) {
   const [expanded, setExpanded] = useState<string | null>(catDetails[0]?.name ?? null)
 
@@ -606,6 +765,22 @@ function SpendingTab({ agg, prev, monthTx, catDetails, recurring, mining, shoppi
               </div>
             )}
           </div>
+        </Card>
+      )}
+
+      {/* 分类月度趋势 */}
+      {catTrend && (
+        <Card className="p-5">
+          <SectionTitle emoji="📉" title="分类月度趋势" desc="Top 5 支出类目的逐月走势——谁在悄悄上涨一目了然。" />
+          <Chart option={multiLineOption(catTrend.months, catTrend.series, true)} height={260} />
+        </Card>
+      )}
+
+      {/* 电商平台月度趋势 */}
+      {shopTrend && shopping.length > 0 && (
+        <Card className="p-5">
+          <SectionTitle emoji="🛍️" title="电商平台月度趋势" desc="各平台的月度消费堆叠。" />
+          <Chart option={stackedBarOption(shopTrend.months, shopTrend.series, true)} height={240} />
         </Card>
       )}
 
@@ -922,6 +1097,11 @@ function TransactionsTab({ processed, queue, months, correctionsCount, correctio
             <h3 className="text-base font-bold text-ink">{queue.length} 笔交易待确认</h3>
           </div>
           <p className="mt-1 text-xs text-ink-soft">这些可能是转账/还款也可能是正常消费，点一下标记真实性质，统计立刻更准。</p>
+          <ul className="mt-2 space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-ink-soft">
+            <li>💳 <b>信用还款</b>：白条/花呗/信用卡的消费在购买当时已计入支出，还款只是还钱，选它可避免重复计算。</li>
+            <li>✅ <b>是支出/是收入</b>：这笔钱是第一次计入（比如直接从银行卡付的一笔消费），选它。</li>
+            <li>拿不准就先跳过——它仍会按当前规则统计，随时可以在下面表格里改。</li>
+          </ul>
           <div className="mt-4 space-y-3">
             {queue.map((tx) => (
               <div key={tx.id} className="rounded-xl bg-slate-50 p-4 transition-colors hover:bg-amber-50/60">
