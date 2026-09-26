@@ -389,7 +389,7 @@ describe('银行账单解析', () => {
     expect(detectPlatform(CMB_SAMPLE_CSV)).toBe('cmb')
     const bill = parseBillText(CMB_SAMPLE_CSV)
     expect(bill.platform).toBe('cmb')
-    expect(bill.transactions.length).toBe(8)
+    expect(bill.transactions.length).toBe(9)
 
     const salary = bill.transactions.find((t) => t.item.includes('工资发放'))!
     expect(salary.direction).toBe('in') // 贷=收入
@@ -436,7 +436,7 @@ describe('银行账单解析', () => {
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
     const bill = await parseBillXlsx(buf)
     expect(bill.platform).toBe('cmb')
-    expect(bill.transactions.length).toBe(8)
+    expect(bill.transactions.length).toBe(9)
   })
 
   it('无银行标识的通用格式兜底解析（platform=bank）', () => {
@@ -610,6 +610,65 @@ describe('PDF 账单解析', () => {
       expect(['in', 'out']).toContain(t.direction)
       expect(t.amount).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('跨渠道去重', () => {
+  const merged = [
+    ...parseBillText(WECHAT_SAMPLE_CSV).transactions,
+    ...parseBillText(ALIPAY_SAMPLE_CSV).transactions,
+    ...parseBillText(CMB_SAMPLE_CSV).transactions,
+  ]
+  const processed = processPipeline(merged, {})
+
+  it('银行"财付通快捷支付"行与微信银行卡消费配对：银行侧剔除、App侧保留', () => {
+    const bankRow = processed.find(
+      (t) => t.platform === 'cmb' && t.item.includes('财付通快捷支付') && Math.abs(t.amount - 26.5) < 0.01,
+    )!
+    const appRow = processed.find(
+      (t) => t.platform === 'wechat' && t.counterparty === '美团平台商户' && t.payMethod.includes('招商银行'),
+    )!
+
+    // 银行渠道行：已对冲，不计收支
+    expect(bankRow.transferFlag).toBe('internal')
+    expect(bankRow.confidence).toBeGreaterThanOrEqual(0.8)
+    expect(bankRow.pairId).toBe(appRow.id)
+    expect(countsAsFlow(bankRow)).toBe(false)
+
+    // App侧消费：保留计数（商户/分类信息全），配对关系可查
+    expect(appRow.transferFlag).toBeNull()
+    expect(appRow.pairId).toBe(bankRow.id)
+    expect(countsAsFlow(appRow)).toBe(true)
+    expect(appRow.category).toBe('餐饮美食')
+  })
+
+  it('零钱支付的消费不参与渠道去重（不经过银行卡）', () => {
+    const luckin = processed.find((t) => t.counterparty === '瑞幸咖啡')!
+    expect(luckin.payMethod).toBe('零钱')
+    expect(luckin.pairId).toBeUndefined()
+  })
+
+  it('汇总守恒：银行渠道行剔除后，美团消费只计一次', () => {
+    const meituanRows = processed.filter(countsAsFlow).filter((t) => t.direction === 'out' && (t.counterparty.includes('美团') || t.item.includes('美团')))
+    expect(meituanRows.length).toBe(1)
+  })
+
+  it('洞察含跨渠道去重条目', () => {
+    const monthTx = processed.filter((t) => t.month === '2025-08')
+    const insights = generateInsights(monthTx, aggregateMonth('2025-08', processed))
+    const dedup = insights.find((i) => i.id === 'dedup')
+    expect(dedup).toBeDefined()
+    expect(dedup!.title).toContain('1 笔')
+  })
+
+  it('手工修正优先：用户把银行渠道行标记为正常支出后照常计数', () => {
+    const bankRow = processed.find(
+      (t) => t.platform === 'cmb' && t.item.includes('财付通快捷支付') && Math.abs(t.amount - 26.5) < 0.01,
+    )!
+    const refixed = processPipeline(merged, { [bankRow.id]: { transferFlag: 'normal' } })
+    const row = refixed.find((t) => t.id === bankRow.id)!
+    expect(row.transferFlag).toBeNull()
+    expect(countsAsFlow(row)).toBe(true)
   })
 })
 

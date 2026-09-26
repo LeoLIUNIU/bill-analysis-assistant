@@ -79,6 +79,19 @@ export function generateInsights(
     })
   }
 
+  // —— 2.5 跨渠道去重（提前说，避免被条数上限截断；这是统计口径的一部分） ——
+  const deduped = txs.filter(
+    (t) => t.pairId && t.transferFlag === 'internal' && t.direction === 'out' && t.platform !== 'wechat' && t.platform !== 'alipay',
+  )
+  if (deduped.length > 0) {
+    const dedupSum = deduped.reduce((s, t) => s + t.amount, 0)
+    out.push({
+      id: 'dedup', kind: 'good', icon: '🔀',
+      title: `${deduped.length} 笔跨渠道重复已对冲（¥${fmt(dedupSum)}）`,
+      detail: '这些消费同时出现在银行流水和微信/支付宝账单里，分析时只保留了信息更全的App侧记录，避免重复计算。',
+    })
+  }
+
   // —— 3. 最大支出类目 ——
   const cats = Object.entries(agg.byCategory).sort((a, b) => b[1] - a[1])
   if (cats.length > 0 && expense > 0) {

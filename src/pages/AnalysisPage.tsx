@@ -1016,6 +1016,8 @@ function buildSankey(txs: Transaction[]): SankeyDatum {
     : platformName(platform as Platform) + '账户'
 
   for (const tx of txs) {
+    // 已对冲的银行渠道行不进流向图（App侧同行已代表该笔消费）
+    if (!countsAsFlow(tx)) continue
     const wallet = walletOf(tx.platform)
     if (tx.direction === 'in') {
       nodeSet.set(tx.category, { name: tx.category, itemStyle: { color: categoryDef(tx.category).color } })

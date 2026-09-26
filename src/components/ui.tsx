@@ -41,7 +41,7 @@ export function PlatformBadge({ platform }: { platform: string }) {
 }
 
 export const FLAG_LABEL: Record<string, string> = {
-  internal: '内部转账',
+  internal: '已对冲',
   repayment: '信用还款',
   refund: '退款',
 }
