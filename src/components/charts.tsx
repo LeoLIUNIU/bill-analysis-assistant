@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts/core'
-import { BarChart, PieChart, SankeyChart } from 'echarts/charts'
+import { BarChart, LineChart, PieChart, SankeyChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsCoreOption } from 'echarts/core'
 
-echarts.use([BarChart, PieChart, SankeyChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([BarChart, LineChart, PieChart, SankeyChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 /** 轻量 ECharts React 封装：option 变化时 setOption，容器尺寸变化时 resize */
 export function Chart({ option, height = 320, className = '' }: { option: EChartsCoreOption; height?: number; className?: string }) {
